@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { User, Shift, Leave, AdvanceRequest } from '../types';
-import { Search, Download, FileText, Edit2, X, CheckCircle, Loader2, History, UserPlus, Lock, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { Search, Download, FileText, Edit2, X, CheckCircle, Loader2, History, UserPlus, Lock, ShieldCheck, ShieldAlert, Zap, AlertTriangle } from 'lucide-react';
 import { DAYS_IN_MONTH, BASE_HOURS } from '../constants';
 import WorkerHistory from './WorkerHistory';
 
@@ -35,9 +35,10 @@ const AdminWorkerList: React.FC<AdminWorkerListProps> = ({ workers, setWorkers, 
   const calculateSalary = (worker: User) => {
     const workerShifts = shifts.filter(s => s.workerId === worker.id && s.isApproved);
     const workerLeaves = leaves.filter(l => l.workerId === worker.id);
+    
+    // Rejected leaves result in 1 full day salary deduction
     const rejectedLeavesCount = workerLeaves.filter(l => l.status === 'rejected').length;
     
-    // Calculate total approved advances for this worker
     const workerAdvances = advanceRequests.filter(r => r.workerId === worker.id && r.status === 'approved');
     const totalApprovedAdvances = workerAdvances.reduce((acc, r) => acc + r.amount, 0);
 
@@ -47,27 +48,31 @@ const AdminWorkerList: React.FC<AdminWorkerListProps> = ({ workers, setWorkers, 
     
     let totalNormalHrs = 0;
     let totalOtHrs = 0;
+    let totalNormalEarnings = 0;
+    let totalOtEarnings = 0;
     
     workerShifts.forEach(s => {
       const normal = Math.min(BASE_HOURS, s.totalHours || 0);
+      const ot = Math.max(0, (s.totalHours || 0) - BASE_HOURS);
       totalNormalHrs += normal;
-      if (s.otStartTime && s.otEndTime) {
-        totalOtHrs += (s.otEndTime - s.otStartTime) / 3600000;
-      }
+      totalOtHrs += ot;
+      totalNormalEarnings += (normal * hourlyRate);
+      totalOtEarnings += (ot * otRate);
     });
 
-    const regularEarnings = totalNormalHrs * hourlyRate;
-    const totalOtPay = totalOtHrs * otRate;
-    const deductions = rejectedLeavesCount * dailyRate;
+    const leaveDeduction = rejectedLeavesCount * dailyRate;
     
-    // Final payable salary logic: Regular + OT - Leaves Deductions - Paid Advances
-    const finalPay = regularEarnings + totalOtPay - deductions - totalApprovedAdvances;
+    // Final Formula: Base Salary (Earned) + OT - Rejected Leave Deduction - Advances
+    const finalPay = totalNormalEarnings + totalOtEarnings - leaveDeduction - totalApprovedAdvances;
     
     return { 
       dailyRate, hourlyRate, otRate, 
       totalNormalHrs, totalOtHrs, 
-      regularEarnings, totalOtPay, 
-      deductions, totalAdvances: totalApprovedAdvances, finalPay,
+      regularEarnings: totalNormalEarnings, totalOtPay: totalOtEarnings, 
+      leaveDeductions: leaveDeduction, 
+      rejectedLeavesCount,
+      totalAdvances: totalApprovedAdvances, 
+      finalPay,
       totalHours: totalNormalHrs + totalOtHrs
     };
   };
@@ -135,7 +140,6 @@ const AdminWorkerList: React.FC<AdminWorkerListProps> = ({ workers, setWorkers, 
 
       <div className="space-y-4">
         {filteredWorkers.map(worker => {
-          const payroll = calculateSalary(worker);
           const loading = isGenerating === worker.id;
           return (
             <div key={worker.id} className={`bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm space-y-5 ${!worker.isActive ? 'opacity-60 grayscale' : ''}`}>
@@ -176,59 +180,61 @@ const AdminWorkerList: React.FC<AdminWorkerListProps> = ({ workers, setWorkers, 
           <div className="w-full max-w-sm bg-white rounded-[2.5rem] p-8 space-y-6 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300 relative overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-2 bg-blue-600" />
             <div className="flex justify-between items-center pt-2">
-              <h3 className="text-xl font-black text-gray-900">Salary Sheet</h3>
+              <h3 className="text-xl font-black text-gray-900">Salary Statement</h3>
               <button onClick={() => setSalaryModalWorker(null)} className="p-2 bg-gray-50 text-gray-400 rounded-full hover:bg-gray-100 transition-colors">
                 <X size={20} />
               </button>
             </div>
             
             <div className="bg-gray-50 p-5 rounded-2xl space-y-3">
-              <div className="flex justify-between items-center"><span className="text-[10px] font-bold text-gray-400 uppercase">Worker</span><span className="text-sm font-black text-gray-900">{salaryModalWorker.worker.name}</span></div>
-              <div className="flex justify-between items-center"><span className="text-[10px] font-bold text-gray-400 uppercase">Monthly Base</span><span className="text-sm font-bold text-gray-900">{salaryModalWorker.worker.monthlySalary} SAR</span></div>
+              <div className="flex justify-between items-center"><span className="text-[10px] font-bold text-gray-400 uppercase">Employee</span><span className="text-sm font-black text-gray-900">{salaryModalWorker.worker.name}</span></div>
+              <div className="flex justify-between items-center"><span className="text-[10px] font-bold text-gray-400 uppercase">Trade</span><span className="text-sm font-bold text-gray-900">{salaryModalWorker.worker.trade}</span></div>
             </div>
 
             <div className="grid grid-cols-2 gap-4 border-b border-gray-100 pb-6">
               <div className="space-y-1">
-                <span className="text-[9px] font-bold text-gray-400 uppercase">Total Hours</span>
-                <p className="text-xl font-black text-gray-900">{salaryModalWorker.payroll.totalHours.toFixed(1)} <span className="text-[10px]">hrs</span></p>
+                <span className="text-[9px] font-bold text-gray-400 uppercase">Work Log</span>
+                <p className="text-xl font-black text-gray-900">{salaryModalWorker.payroll.totalNormalHrs.toFixed(1)} <span className="text-[10px]">hrs</span></p>
               </div>
               <div className="space-y-1 text-right">
-                <span className="text-[9px] font-bold text-blue-500 uppercase">OT Hours</span>
-                <p className="text-xl font-black text-blue-600">{salaryModalWorker.payroll.totalOtHrs.toFixed(1)} <span className="text-[10px]">hrs</span></p>
+                <span className="text-[9px] font-bold text-orange-500 uppercase flex items-center justify-end gap-1">Overtime <Zap size={10} /></span>
+                <p className="text-xl font-black text-orange-600">{salaryModalWorker.payroll.totalOtHrs.toFixed(1)} <span className="text-[10px]">hrs</span></p>
               </div>
             </div>
 
             <div className="space-y-3 px-1">
               <div className="flex justify-between text-[11px] font-bold">
-                <span className="text-gray-400 uppercase">Regular Earnings</span>
+                <span className="text-gray-400 uppercase">Standard Earnings</span>
                 <span className="text-gray-900">+{salaryModalWorker.payroll.regularEarnings.toFixed(0)} SAR</span>
               </div>
               <div className="flex justify-between text-[11px] font-bold">
-                <span className="text-blue-500 uppercase">Overtime (1.5x)</span>
-                <span className="text-blue-600">+{salaryModalWorker.payroll.totalOtPay.toFixed(0)} SAR</span>
+                <span className="text-orange-500 uppercase">Overtime (1.5x Rate)</span>
+                <span className="text-orange-600">+{salaryModalWorker.payroll.totalOtPay.toFixed(0)} SAR</span>
               </div>
+              {salaryModalWorker.payroll.rejectedLeavesCount > 0 && (
+                <div className="flex justify-between text-[11px] font-bold items-center">
+                  <span className="text-red-500 uppercase flex items-center gap-1"><AlertTriangle size={10}/> Rejected Leaves ({salaryModalWorker.payroll.rejectedLeavesCount})</span>
+                  <span className="text-red-600">-{salaryModalWorker.payroll.leaveDeductions.toFixed(0)} SAR</span>
+                </div>
+              )}
               <div className="flex justify-between text-[11px] font-bold">
-                <span className="text-red-400 uppercase">Rejected Leaves</span>
-                <span className="text-red-500">-{salaryModalWorker.payroll.deductions.toFixed(0)} SAR</span>
-              </div>
-              <div className="flex justify-between text-[11px] font-bold">
-                <span className="text-orange-400 uppercase">Paid Advances</span>
-                <span className="text-orange-500">-{salaryModalWorker.payroll.totalAdvances.toFixed(0)} SAR</span>
+                <span className="text-gray-400 uppercase">Cash Advances Paid</span>
+                <span className="text-gray-900">-{salaryModalWorker.payroll.totalAdvances.toFixed(0)} SAR</span>
               </div>
             </div>
 
-            <div className="bg-blue-600 p-6 rounded-[2rem] text-white flex justify-between items-center shadow-xl shadow-blue-100">
+            <div className="bg-gray-900 p-6 rounded-[2rem] text-white flex justify-between items-center shadow-xl shadow-gray-100">
               <div>
-                <p className="text-[10px] font-bold uppercase opacity-80">Final Payable Salary</p>
+                <p className="text-[10px] font-bold uppercase opacity-80">Final Payout</p>
                 <p className="text-3xl font-black tracking-tight">{salaryModalWorker.payroll.finalPay.toFixed(0)} <span className="text-sm font-normal">SAR</span></p>
               </div>
-              <div className="bg-white/20 p-2 rounded-xl">
-                <CheckCircle size={32} />
+              <div className="bg-blue-500 p-2 rounded-xl">
+                <CheckCircle size={32} className="text-white" />
               </div>
             </div>
 
-            <button onClick={() => setSalaryModalWorker(null)} className="w-full bg-gray-900 text-white font-bold py-5 rounded-2xl active:scale-95 transition-all shadow-lg shadow-gray-200">
-              Close Statement
+            <button onClick={() => setSalaryModalWorker(null)} className="w-full bg-gray-100 text-gray-900 font-bold py-5 rounded-2xl active:scale-95 transition-all">
+              Done
             </button>
           </div>
         </div>

@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { User, Shift, Leave, AdvanceRequest, Announcement } from '../types';
-import { Users, Clock, AlertCircle, CheckCircle2, XCircle, X, History, Calendar, Wallet, TrendingUp, BarChart3, Trophy, Megaphone, Plus, Bell, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Users, AlertCircle, CheckCircle2, X, Calendar, Wallet, Trophy, Megaphone, Bell, CheckCircle, AlertTriangle } from 'lucide-react';
 
 interface AdminDashboardProps {
   shifts: Shift[];
@@ -28,11 +28,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const todayStr = new Date().toISOString().split('T')[0];
   
   // Stats
-  const presentShiftsToday = shifts.filter(s => s.date === todayStr && s.status !== 'none');
-  const liveCount = shifts.filter(s => s.status !== 'completed' && s.status !== 'none').length;
+  const presentTodayCount = shifts.filter(s => s.date === todayStr).length;
   const pendingAdvances = advanceRequests.filter(r => r.status === 'pending');
   const pendingLeaves = leaves.filter(l => l.status === 'pending');
-  const pendingAttendance = shifts.filter(s => s.status === 'completed' && !s.isApproved);
+  const pendingAttendance = shifts.filter(s => s.status === 'pending' && !s.isApproved);
 
   // Scheduled Payments Due Alert
   const dueScheduledPayments = useMemo(() => {
@@ -43,7 +42,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     );
   }, [advanceRequests, todayStr]);
 
-  // Document Alerts (Expiring within 30 days)
+  // Document Alerts
   const expiringDocs = useMemo(() => {
     const thirtyDaysFromNow = new Date();
     thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
@@ -56,17 +55,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   }, [workers]);
 
   const presentWorkers = useMemo(() => {
-    return presentShiftsToday.map(s => {
+    return shifts.filter(s => s.date === todayStr).map(s => {
       const worker = workers.find(w => w.id === s.workerId);
       return { worker, shift: s };
     }).filter(item => item.worker !== undefined);
-  }, [presentShiftsToday, workers]);
+  }, [shifts, workers, todayStr]);
 
   const otLeaderboard = useMemo(() => {
     const map: Record<string, number> = {};
     shifts.forEach(s => {
-      if (s.otStartTime && s.otEndTime) {
-        map[s.workerId] = (map[s.workerId] || 0) + (s.otEndTime - s.otStartTime) / 3600000;
+      if (s.totalHours > 10) {
+        map[s.workerId] = (map[s.workerId] || 0) + (s.totalHours - 10);
       }
     });
     return Object.entries(map)
@@ -91,7 +90,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const approveShift = (id: string) => {
-    setShifts(prev => prev.map(s => s.id === id ? { ...s, isApproved: true } : s));
+    setShifts(prev => prev.map(s => s.id === id ? { ...s, isApproved: true, status: 'completed' } : s));
   };
 
   const getWorker = (id: string) => workers.find(w => w.id === id);
@@ -156,12 +155,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <button onClick={() => setShowPresentModal(true)} className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm text-left active:bg-gray-50 transition-all">
           <div className="flex justify-between items-start mb-4">
             <div className="p-2.5 bg-blue-50 text-blue-600 rounded-2xl"><Users size={20} /></div>
-            <span className="text-[10px] font-bold text-green-500 flex items-center gap-1 uppercase">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> {liveCount} Live
-            </span>
           </div>
-          <p className="text-3xl font-black text-gray-900">{presentShiftsToday.length}</p>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Present Today</p>
+          <p className="text-3xl font-black text-gray-900">{presentTodayCount}</p>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Reported Today</p>
         </button>
         <div className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm">
           <div className="p-2.5 bg-orange-50 text-orange-600 rounded-2xl mb-4 w-fit"><Bell size={20} /></div>
@@ -170,11 +166,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       </div>
 
-      {/* Attendance Approval Section */}
+      {/* Manual Attendance Verification */}
       {pendingAttendance.length > 0 && (
         <div className="space-y-4">
           <h3 className="text-xs font-bold text-blue-700 uppercase flex items-center gap-2 ml-1">
-            <CheckCircle size={14} /> Attendance to Verify
+            <CheckCircle size={14} /> Attendance Verification
           </h3>
           <div className="space-y-3">
             {pendingAttendance.map(s => {
@@ -190,15 +186,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs font-black text-blue-600">{s.totalHours.toFixed(1)} hrs</p>
-                      {s.otStartTime && <span className="text-[8px] bg-orange-100 text-orange-600 px-1 rounded font-bold uppercase">Incl. OT</span>}
+                      <p className="text-xs font-black text-blue-600">{s.totalHours.toFixed(2)} hrs</p>
+                      <p className="text-[8px] text-gray-400 font-bold uppercase">Break: {s.breakMinutes}m</p>
                     </div>
                   </div>
+                  {s.notes && <p className="text-[10px] bg-gray-50 p-2 rounded-xl italic">"{s.notes}"</p>}
                   <button 
                     onClick={() => approveShift(s.id)}
                     className="w-full bg-blue-600 text-white text-[10px] font-bold py-3 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-all"
                   >
-                    <CheckCircle2 size={14} /> Approve Work Log
+                    <CheckCircle2 size={14} /> Approve Work Hours
                   </button>
                 </div>
               );
@@ -291,45 +288,46 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* Trend & Leaderboard */}
-      <div className="grid grid-cols-1 gap-6">
-        <div className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-4">
-          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-            <Trophy size={14} className="text-yellow-500" /> OT Leaderboard
-          </h3>
-          {otLeaderboard.map((entry, i) => (
-            <div key={i} className="flex justify-between items-center text-sm font-bold">
-              <span className="text-gray-900">{entry.worker?.name}</span>
-              <span className="text-blue-600">{entry.hrs.toFixed(1)}h</span>
-            </div>
-          ))}
-        </div>
+      {/* Leaderboard */}
+      <div className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-4">
+        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+          <Trophy size={14} className="text-yellow-500" /> OT Leaderboard
+        </h3>
+        {otLeaderboard.length > 0 ? otLeaderboard.map((entry, i) => (
+          <div key={i} className="flex justify-between items-center text-sm font-bold">
+            <span className="text-gray-900">{entry.worker?.name}</span>
+            <span className="text-blue-600">{entry.hrs.toFixed(1)}h</span>
+          </div>
+        )) : <p className="text-[10px] text-gray-400 text-center py-4">No overtime recorded yet.</p>}
       </div>
 
-      {/* Present Modal */}
+      {/* Present List Modal */}
       {showPresentModal && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-6 bg-black/60 backdrop-blur-md">
           <div className="w-full max-w-sm bg-white rounded-[2.5rem] p-8 space-y-6 shadow-2xl animate-in fade-in zoom-in duration-200">
             <div className="flex justify-between items-center">
               <div>
-                <h3 className="text-xl font-black text-gray-900">Present Now</h3>
-                <p className="text-[10px] font-bold text-gray-400 uppercase">On-Site Workers List</p>
+                <h3 className="text-xl font-black text-gray-900">Today's Attendance</h3>
+                <p className="text-[10px] font-bold text-gray-400 uppercase">Workers who reported work</p>
               </div>
               <button onClick={() => setShowPresentModal(false)} className="p-2 bg-gray-50 text-gray-400 rounded-full"><X size={20} /></button>
             </div>
             <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
-              {presentWorkers.map(({ worker, shift }) => (
+              {presentWorkers.length > 0 ? presentWorkers.map(({ worker, shift }) => (
                 <div key={shift.id} className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 border border-gray-100">
                   <div className="w-10 h-10 rounded-xl bg-gray-200 overflow-hidden"><img src={worker?.photoUrl} className="w-full h-full object-cover" /></div>
                   <div className="flex-1">
                     <p className="text-sm font-bold text-gray-900">{worker?.name}</p>
                     <p className="text-[9px] text-blue-600 font-bold uppercase">{worker?.trade}</p>
                   </div>
-                  <div className={`px-2 py-1 rounded text-[8px] font-black uppercase ${shift.status === 'ot_running' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
-                    {shift.status === 'ot_running' ? 'OT' : 'NORMAL'}
+                  <div className="text-right">
+                    <p className="text-xs font-black text-gray-900">{shift.totalHours.toFixed(2)}h</p>
+                    <span className={`text-[8px] font-black uppercase ${shift.isApproved ? 'text-green-600' : 'text-orange-500'}`}>
+                      {shift.isApproved ? 'Verified' : 'Pending'}
+                    </span>
                   </div>
                 </div>
-              ))}
+              )) : <p className="text-center text-gray-400 text-sm py-8">No attendance reported for today yet.</p>}
             </div>
             <button onClick={() => setShowPresentModal(false)} className="w-full bg-gray-900 text-white font-bold py-4 rounded-2xl">Close</button>
           </div>

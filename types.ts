@@ -13,22 +13,21 @@ export interface User {
   photoUrl: string;
   password?: string;
   isActive: boolean;
-  iqamaExpiry?: string; // New: Document tracking
-  passportExpiry?: string; // New: Document tracking
+  iqamaExpiry?: string;
+  passportExpiry?: string;
 }
 
-export type ShiftStatus = 'none' | 'running' | 'ot_requested' | 'ot_running' | 'completed';
+export type ShiftStatus = 'none' | 'pending' | 'completed';
 
 export interface Shift {
   id: string;
   workerId: string;
   date: string; // ISO string YYYY-MM-DD
   startTime: number; // timestamp
-  endTime?: number; // timestamp
+  endTime: number; // timestamp
   status: ShiftStatus;
-  otRequestedAt?: number;
-  otStartTime?: number;
-  otEndTime?: number;
+  breakMinutes: number;
+  notes?: string;
   isApproved: boolean;
   totalHours: number;
   estimatedEarnings: number;
@@ -69,14 +68,4 @@ export interface Announcement {
   content: string;
   priority: 'low' | 'high';
   timestamp: number;
-}
-
-export interface AppState {
-  currentUser: User | null;
-  shifts: Shift[];
-  leaves: Leave[];
-  posts: SitePost[];
-  workers: User[];
-  advanceRequests: AdvanceRequest[];
-  announcements: Announcement[];
 }

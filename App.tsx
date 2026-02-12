@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, Shift, Leave, SitePost, AdvanceRequest, Announcement } from './types';
-import { MOCK_WORKERS, MOCK_ADMIN, SHIFT_DURATION_MS, OT_DECISION_WINDOW_MS, MAX_OT_DURATION_MS } from './constants';
+import { MOCK_WORKERS, MOCK_ADMIN } from './constants';
 import WorkerApp from './components/WorkerApp';
 import AdminApp from './components/AdminApp';
 import Login from './components/Login';
@@ -45,40 +45,6 @@ const App: React.FC = () => {
     localStorage.setItem('fw_advance', JSON.stringify(advanceRequests));
     localStorage.setItem('fw_announcements', JSON.stringify(announcements));
   }, [isLoaded, shifts, leaves, posts, workers, advanceRequests, announcements]);
-
-  // Server-side logic simulation (Auto-complete shifts)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const now = Date.now();
-      setShifts(prev => prev.map(shift => {
-        let updated = { ...shift };
-        if (shift.status === 'running') {
-          const elapsed = now - shift.startTime;
-          if (elapsed >= SHIFT_DURATION_MS + OT_DECISION_WINDOW_MS) {
-            updated.status = 'completed';
-            updated.endTime = shift.startTime + SHIFT_DURATION_MS;
-          }
-        }
-        if (shift.status === 'ot_requested') {
-          const otElapsed = now - (shift.otRequestedAt || 0);
-          if (otElapsed >= OT_DECISION_WINDOW_MS) {
-            updated.status = 'ot_running';
-            updated.otStartTime = (shift.otRequestedAt || 0) + OT_DECISION_WINDOW_MS;
-          }
-        }
-        if (shift.status === 'ot_running') {
-          const otDuration = now - (shift.otStartTime || 0);
-          if (otDuration >= MAX_OT_DURATION_MS) {
-            updated.status = 'completed';
-            updated.otEndTime = (updated.otStartTime || 0) + MAX_OT_DURATION_MS;
-            updated.endTime = updated.otEndTime;
-          }
-        }
-        return updated;
-      }));
-    }, 10000);
-    return () => clearInterval(interval);
-  }, [shifts]);
 
   const handleLogin = (user: User) => {
     setCurrentUser(user);
