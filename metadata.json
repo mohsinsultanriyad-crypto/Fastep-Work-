@@ -1,0 +1,7 @@
+{
+  "name": "FASTEP WORK",
+  "description": "Internal workforce management application for digital attendance, overtime, leave, and salary management with approval-based verification.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
