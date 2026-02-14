@@ -218,6 +218,9 @@ router.post("/create-worker", async(req,res)=>{
         const expectedSecret = process.env.ADMIN_SECRET;
 
         console.log(`[Admin/CreateWorker] POST request received`);
+        console.log(`[Admin/CreateWorker] Content-Type: "${req.headers['content-type']}"`);
+        console.log(`[Admin/CreateWorker] req.body type:`, typeof req.body, req.body === undefined ? 'UNDEFINED' : 'present');
+        console.log(`[Admin/CreateWorker] req.body:`, JSON.stringify(req.body, null, 2));
         console.log(`[Admin/CreateWorker] Header x-admin-secret: "${adminSecret}"`);
         console.log(`[Admin/CreateWorker] Expected ADMIN_SECRET: "${expectedSecret}"`);
         console.log(`[Admin/CreateWorker] Match: ${adminSecret === expectedSecret}`);

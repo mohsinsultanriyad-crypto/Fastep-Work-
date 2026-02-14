@@ -40,6 +40,7 @@ if (!ADMIN_SECRET) {
 // Helper function to add admin secret to headers
 export function adminHeaders(extra: Record<string, string> = {}) {
 	return {
+		"Content-Type": "application/json",
 		...extra,
 		"x-admin-secret": ADMIN_SECRET
 	};
