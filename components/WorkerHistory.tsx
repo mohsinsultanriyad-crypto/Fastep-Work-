@@ -121,8 +121,8 @@ const WorkerHistory: React.FC<WorkerHistoryProps> = ({ user, shifts, leaves, adv
             <h3 className="font-bold text-gray-900">{now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</h3>
           </div>
           <div className="grid grid-cols-7 gap-2">
-            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => (
-              <div key={d} className="text-center text-[10px] font-bold text-gray-400 py-1 uppercase">{d}</div>
+            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, idx) => (
+              <div key={`weekday-${idx}`} className="text-center text-[10px] font-bold text-gray-400 py-1 uppercase">{d}</div>
             ))}
             {days.map(day => {
               const dayStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
