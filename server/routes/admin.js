@@ -60,4 +60,29 @@ router.post("/approve/:id", async(req,res)=>{
     }
 });
 
+// DELETE ALL WORK ENTRIES (admin-only, protected by x-admin-secret header)
+router.delete("/clear-all", async(req,res)=>{
+    try {
+        const adminSecret = req.headers["x-admin-secret"];
+        const expectedSecret = process.env.ADMIN_SECRET;
+
+        if (!adminSecret || adminSecret !== expectedSecret) {
+            console.warn("[Admin/ClearAll] Unauthorized attempt (invalid or missing secret)");
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+
+        console.log("[Admin/ClearAll] Deleting all work entries...");
+        const result = await Work.deleteMany({});
+        
+        console.log(`[Admin/ClearAll] Deleted ${result.deletedCount} work entries`);
+        res.json({ 
+            message: "All work entries deleted",
+            deletedCount: result.deletedCount 
+        });
+    } catch (e) {
+        console.error("[Admin/ClearAll] Error:", e);
+        res.status(500).json({ message: "Delete failed", error: e.message });
+    }
+});
+
 module.exports = router;
