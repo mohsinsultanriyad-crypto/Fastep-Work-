@@ -71,6 +71,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       // backend may return array OR {data:[]}
       const list: PendingWork[] = Array.isArray(data) ? data : data?.data || [];
+      console.log(`[AdminDashboard] Fetched pending entries:`, list.length, "items");
+      console.log(`[AdminDashboard] Current shifts state:`, shifts.length, "items");
       setPendingAttendance(list);
       setBackendOk(true);
     } catch (err) {
@@ -115,6 +117,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     } catch (err) {
       console.error("[AdminApprove] Error:", err);
       alert("Backend not running ❌");
+    }
+  };
+
+  // Clear all cached work data (call this after backend clear-all)
+  const clearCachedWorkData = () => {
+    try {
+      console.log("[Admin] Clearing cached work data from localStorage and state...");
+      localStorage.removeItem('fw_shifts');
+      setShifts([]);
+      setPendingAttendance([]);
+      alert("✅ Cache cleared! Work data removed from localStorage and state.");
+    } catch (err) {
+      console.error("[Admin] Error clearing cache:", err);
+      alert("Error clearing cache");
     }
   };
 
@@ -216,7 +232,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <h1 className="text-2xl font-black text-gray-900">Operations Hub</h1>
 
           {/* ✅ small backend status */}
-          <div className="mt-2">
+          <div className="mt-2 flex items-center gap-2">
             <span
               className={`text-[10px] font-bold uppercase px-2 py-1 rounded-lg ${
                 backendOk ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
@@ -224,6 +240,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             >
               {backendOk ? "Backend running ✅" : "Backend not running ❌"}
             </span>
+            <button
+              onClick={clearCachedWorkData}
+              className="text-[10px] font-bold uppercase px-2 py-1 rounded-lg bg-yellow-100 text-yellow-700 hover:bg-yellow-200 transition-all"
+              title="Clear cached work entries from browser storage"
+            >
+              Clear Cache
+            </button>
           </div>
         </div>
 
