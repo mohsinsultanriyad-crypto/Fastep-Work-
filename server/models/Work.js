@@ -7,7 +7,7 @@ const WorkSchema = new mongoose.Schema({
         
     },
 
-    date:String,
+    date: { type: String, required: true },
 
     startTime:String,
     endTime:String,

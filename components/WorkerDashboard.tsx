@@ -39,6 +39,7 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
 }) => {
   const API = API_BASE_URL;
   const todayStr = new Date().toISOString().split("T")[0];
+  const [selectedDate, setSelectedDate] = useState<string>(todayStr);
 
   const workerDbId = safeId(user);
 
@@ -233,16 +234,16 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
       const [outH, outM] = outTime.split(":").map(Number);
 
       const startTime = new Date(
-        new Date(todayStr).setHours(inH, inM, 0, 0)
+        new Date(selectedDate).setHours(inH, inM, 0, 0)
       ).getTime();
 
       const endTime = new Date(
-        new Date(todayStr).setHours(outH, outM, 0, 0)
+        new Date(selectedDate).setHours(outH, outM, 0, 0)
       ).getTime();
 
       const payload = {
         workerId: workerDbId, // ✅ Mongo id preferred
-        date: todayStr,
+        date: selectedDate,
         startTime,
         endTime,
         breakMinutes: Number(breakMins || 0),
@@ -284,7 +285,7 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
       const newShift: Shift = {
         id: saved?._id || todayShift?.id || Math.random().toString(36).slice(2, 11),
         workerId: workerDbId,
-        date: todayStr,
+        date: selectedDate,
         startTime,
         endTime,
         breakMinutes: Number(breakMins || 0),
@@ -302,7 +303,7 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
           (s) =>
             !(
               (s.workerId === workerDbId || s.workerId === (user as any)?.id) &&
-              s.date === todayStr
+              s.date === selectedDate
             )
         );
         return [...filtered, newShift];
@@ -424,7 +425,16 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
 
         {(!todayShift || isEditing) && !isLocked ? (
           <div className="space-y-5">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Date</label>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-100 p-4 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-gray-400 uppercase ml-1">
                   Morning In

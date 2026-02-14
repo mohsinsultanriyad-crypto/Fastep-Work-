@@ -31,25 +31,26 @@ router.post("/submit", async(req,res)=>{
 
     console.log(`[Work Submit] Received: workerId=${workerId}, date=${date}, hours=${totalHours}`);
 
-    // Check if already has approved entry for this date
-    const already = await Work.findOne({workerId,date});
+    // Validation: date required
+    if(!date){
+        return res.status(400).json({message: 'Date is required'});
+    }
 
-    if(already){
-        console.log(`[Work Submit] Found existing entry. isApproved=${already.isApproved}`);
-        if(already.isApproved){
-            return res.status(400).json({message:"This entry is already approved. Submit a new one for a different date."});
+    // Validation: no future dates
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        if (date > today) {
+            return res.status(400).json({ message: 'Future dates are not allowed' });
         }
-        // Update existing pending entry
-        const updated = await Work.findByIdAndUpdate(already._id, {
-            startTime,
-            endTime,
-            totalHours,
-            otHours,
-            breakMinutes,
-            notes
-        }, { new: true });
-        console.log(`[Work Submit] Updated existing entry`);
-        return res.json(updated);
+    } catch (e) {
+        // ignore parsing errors
+    }
+
+    // Check duplicate entry for same user+date
+    const already = await Work.findOne({workerId,date});
+    if(already){
+        console.log(`[Work Submit] Duplicate entry exists for workerId=${workerId}, date=${date}`);
+        return res.status(400).json({ message: 'An entry for this date already exists' });
     }
 
     const work = await Work.create({
