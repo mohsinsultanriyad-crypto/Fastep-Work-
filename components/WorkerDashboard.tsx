@@ -241,8 +241,14 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
         new Date(selectedDate).setHours(outH, outM, 0, 0)
       ).getTime();
 
+      // Include canonical userId (Mongo ObjectId) when available so server stores a stable reference
+      const rawAuth = typeof window !== 'undefined' ? localStorage.getItem('fastep_auth') : null;
+      let auth: any = null;
+      try { auth = rawAuth ? JSON.parse(rawAuth) : null; } catch (e) { auth = null; }
+
       const payload = {
-        workerId: workerDbId, // ✅ Mongo id preferred
+        userId: auth?.userId || (user as any)?._id || (user as any)?.id,
+        workerId: workerDbId, // fallback/compat
         date: selectedDate,
         startTime,
         endTime,

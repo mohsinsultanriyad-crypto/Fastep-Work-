@@ -6,6 +6,8 @@ import WorkerHistory from './WorkerHistory';
 import SiteFeed from './SiteFeed';
 import Profile from './Profile';
 import { LayoutDashboard, History, Rss, User as UserIcon } from 'lucide-react';
+import { useEffect } from 'react';
+import { API_BASE_URL } from '../api';
 
 interface WorkerAppProps {
   user: User;
@@ -25,6 +27,49 @@ const WorkerApp: React.FC<WorkerAppProps> = ({
   user, shifts, setShifts, leaves, setLeaves, posts, setPosts, 
   advanceRequests, setAdvanceRequests, announcements, onLogout 
 }) => {
+  // Load worker-specific data from backend on mount (single source of truth)
+  useEffect(() => {
+    // Use auth from localStorage (stored as { userId, ... }) to fetch canonical history
+    const raw = typeof window !== 'undefined' ? localStorage.getItem('fastep_auth') : null;
+    let auth: any = null;
+    try { auth = raw ? JSON.parse(raw) : null; } catch (e) { auth = null; }
+    const userId = auth?.userId || (user as any)._id || (user as any).id;
+    if (!userId) return;
+
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/work/list-by-user/${userId}`, {
+          headers: { 'Content-Type': 'application/json' }
+        });
+        if (!res.ok) {
+          // Replace state with empty array to maintain single source of truth
+          setShifts([]);
+          return;
+        }
+        const data = await res.json();
+        // Ensure each shift has a `date` field; derive from startTime if missing
+        const normalized = (Array.isArray(data) ? data : []).map((s: any) => ({
+          _id: s._id || s.id,
+          id: s._id || s.id,
+          workerId: s.workerId,
+          date: s.date || (s.startTime ? new Date(Number(s.startTime)).toISOString().slice(0,10) : ''),
+          startTime: s.startTime,
+          endTime: s.endTime,
+          breakMinutes: s.breakMinutes || 0,
+          notes: s.notes || '',
+          status: s.status || 'pending',
+          isApproved: !!s.isApproved,
+          totalHours: s.totalHours || 0
+        }));
+
+        // Replace local shifts state with server-provided list (even empty)
+        setShifts(normalized as any);
+      } catch (e) {
+        console.warn('[WorkerApp] Failed to load worker history:', e);
+      }
+    })();
+  }, [user, setShifts]);
+
   const [activeTab, setActiveTab] = useState<'dashboard' | 'history' | 'feed' | 'profile'>('dashboard');
 
   const workerShifts = useMemo(() => shifts.filter(s => s.workerId === user.id), [shifts, user.id]);

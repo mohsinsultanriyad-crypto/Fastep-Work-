@@ -55,12 +55,16 @@ const Login: React.FC<LoginProps> = ({ onLogin, workers }) => {
         }
 
         console.log("[Login] ✅ Successfully authenticated");
-        // Store token in localStorage
-        localStorage.setItem('fastep_auth', JSON.stringify({
+        // Store compact auth info in localStorage (single-source-of-truth)
+        const authObj = {
           token: data.token,
           user: data.user,
+          userId: data.user?._id || data.user?.id,
+          workerId: data.user?.workerId || null,
+          role: data.user?.role || null,
           timestamp: Date.now()
-        }));
+        };
+        localStorage.setItem('fastep_auth', JSON.stringify(authObj));
 
         onLogin(data.user);
       } catch (err) {

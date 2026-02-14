@@ -70,7 +70,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       const data = await res.json();
 
       // backend may return array OR {data:[]}
-      const list: PendingWork[] = Array.isArray(data) ? data : data?.data || [];
+      const list: PendingWork[] = Array.isArray(data) ? data : [];
       console.log(`[AdminDashboard] Fetched pending entries:`, list.length, "items");
       console.log(`[AdminDashboard] Current shifts state:`, shifts.length, "items");
       setPendingAttendance(list);
@@ -123,11 +123,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Clear all cached work data (call this after backend clear-all)
   const clearCachedWorkData = () => {
     try {
-      console.log("[Admin] Clearing cached work data from localStorage and state...");
-      localStorage.removeItem('fw_shifts');
+      console.log("[Admin] Clearing work-related in-memory state...");
+      // We no longer persist work data in browser storage; only clear runtime state.
       setShifts([]);
       setPendingAttendance([]);
-      alert("✅ Cache cleared! Work data removed from localStorage and state.");
+      alert("✅ Cleared in-memory work state. Backend data remains unchanged.");
     } catch (err) {
       console.error("[Admin] Error clearing cache:", err);
       alert("Error clearing cache");

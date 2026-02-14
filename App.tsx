@@ -9,7 +9,15 @@ import Login from './components/Login';
 const App: React.FC = () => {
   // Hydrate auth from localStorage synchronously so refresh keeps user logged in
   const savedAuth = typeof window !== 'undefined' ? localStorage.getItem('fastep_auth') : null;
-  const initialUser = savedAuth ? (JSON.parse(savedAuth) as User) : null;
+  let initialUser: User | null = null;
+  if (savedAuth) {
+    try {
+      const parsed = JSON.parse(savedAuth);
+      initialUser = parsed?.user || parsed || null;
+    } catch (e) {
+      initialUser = null;
+    }
+  }
   const [currentUser, setCurrentUser] = useState<User | null>(initialUser);
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [leaves, setLeaves] = useState<Leave[]>([]);
@@ -19,40 +27,24 @@ const App: React.FC = () => {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Persistence: Load
+  // NOTE: Work-related data (shifts/leaves/posts/advance/announcements) is
+  // always loaded from backend APIs at runtime. We intentionally do NOT
+  // persist these in localStorage to keep a single source of truth.
   useEffect(() => {
-    const savedShifts = localStorage.getItem('fw_shifts');
-    const savedLeaves = localStorage.getItem('fw_leaves');
-    const savedPosts = localStorage.getItem('fw_posts');
-    const savedWorkers = localStorage.getItem('fw_workers');
-    const savedAdvance = localStorage.getItem('fw_advance');
-    const savedAnnouncements = localStorage.getItem('fw_announcements');
-    
-    if (savedShifts) setShifts(JSON.parse(savedShifts));
-    if (savedLeaves) setLeaves(JSON.parse(savedLeaves));
-    if (savedPosts) setPosts(JSON.parse(savedPosts));
-    if (savedWorkers) setWorkers(JSON.parse(savedWorkers));
-    if (savedAdvance) setAdvanceRequests(JSON.parse(savedAdvance));
-    if (savedAnnouncements) setAnnouncements(JSON.parse(savedAnnouncements));
-    
     setIsLoaded(true);
   }, []);
-
-  // Persistence: Save
-  useEffect(() => {
-    if (!isLoaded) return;
-    localStorage.setItem('fw_shifts', JSON.stringify(shifts));
-    localStorage.setItem('fw_leaves', JSON.stringify(leaves));
-    localStorage.setItem('fw_posts', JSON.stringify(posts));
-    localStorage.setItem('fw_workers', JSON.stringify(workers));
-    localStorage.setItem('fw_advance', JSON.stringify(advanceRequests));
-    localStorage.setItem('fw_announcements', JSON.stringify(announcements));
-  }, [isLoaded, shifts, leaves, posts, workers, advanceRequests, announcements]);
 
   const handleLogin = (user: User) => {
     setCurrentUser(user);
     try {
-      localStorage.setItem('fastep_auth', JSON.stringify(user));
+      const authObj = {
+        user,
+        userId: (user as any)?._id || (user as any)?.id,
+        workerId: (user as any)?.workerId || null,
+        role: (user as any)?.role || null,
+        timestamp: Date.now()
+      };
+      localStorage.setItem('fastep_auth', JSON.stringify(authObj));
     } catch (e) {
       console.warn('Failed to persist auth:', e);
     }

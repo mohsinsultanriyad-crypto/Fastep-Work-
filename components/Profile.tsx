@@ -71,36 +71,11 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout, leaves, setLeaves, ad
   };
 
   const backupData = () => {
-    const data = {
-      shifts: localStorage.getItem('fw_shifts'),
-      leaves: localStorage.getItem('fw_leaves'),
-      workers: localStorage.getItem('fw_workers'),
-      advance: localStorage.getItem('fw_advance')
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `FASTEP_Backup_${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
+    alert('Backup of work data is disabled in the client. All work data is stored on the server and can be exported from backend admin tools.');
   };
 
   const restoreData = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const data = JSON.parse(event.target?.result as string);
-        if (data.shifts) localStorage.setItem('fw_shifts', data.shifts);
-        if (data.leaves) localStorage.setItem('fw_leaves', data.leaves);
-        if (data.workers) localStorage.setItem('fw_workers', data.workers);
-        if (data.advance) localStorage.setItem('fw_advance', data.advance);
-        alert("Restore successful! App will reload.");
-        window.location.reload();
-      } catch (err) { alert("Invalid backup file."); }
-    };
-    reader.readAsText(file);
+    alert('Client-side restore is disabled. Please use server-side import tools to restore work data.');
   };
 
   const myAdvanceRequests = advanceRequests?.filter(r => r.workerId === user.id) || [];
