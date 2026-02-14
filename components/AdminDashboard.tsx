@@ -50,10 +50,150 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   setAnnouncements,
 }) => {
   // ---------------------------
-  // ✅ Backend Live Attendance
+  // ✅ Backend Pending Leaves & Advances
   // ---------------------------
+  const [pendingLeavesFromBackend, setPendingLeavesFromBackend] = useState<any[]>([]);
+  const [pendingAdvancesFromBackend, setPendingAdvancesFromBackend] = useState<any[]>([]);
   const [pendingAttendance, setPendingAttendance] = useState<PendingWork[]>([]);
   const [backendOk, setBackendOk] = useState(true);
+
+  const getAdminSecret = () => {
+    // Get admin secret from env or localStorage
+    return (import.meta as any)?.env?.VITE_ADMIN_SECRET || localStorage.getItem('admin_secret') || '';
+  };
+
+  const fetchPendingLeaves = async () => {
+    try {
+      const adminSecret = getAdminSecret();
+      console.log('[AdminDashboard] Fetching pending leaves...');
+      const res = await fetch(`${API}/api/leaves/admin/pending`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-secret": adminSecret
+        },
+      });
+
+      if (!res.ok) {
+        console.warn('[AdminDashboard] Failed to fetch pending leaves:', res.status);
+        return;
+      }
+
+      const data = await res.json();
+      const leaves = Array.isArray(data) ? data : [];
+      console.log('[AdminDashboard] Fetched pending leaves:', leaves.length);
+      setPendingLeavesFromBackend(leaves);
+    } catch (err) {
+      console.error('[AdminDashboard] Error fetching leaves:', err);
+    }
+  };
+
+  const fetchPendingAdvances = async () => {
+    try {
+      const adminSecret = getAdminSecret();
+      console.log('[AdminDashboard] Fetching pending advances...');
+      const res = await fetch(`${API}/api/advances/admin/pending`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-secret": adminSecret
+        },
+      });
+
+      if (!res.ok) {
+        console.warn('[AdminDashboard] Failed to fetch pending advances:', res.status);
+        return;
+      }
+
+      const data = await res.json();
+      const advances = Array.isArray(data) ? data : [];
+      console.log('[AdminDashboard] Fetched pending advances:', advances.length);
+      setPendingAdvancesFromBackend(advances);
+    } catch (err) {
+      console.error('[AdminDashboard] Error fetching advances:', err);
+    }
+  };
+
+  const approveLeave = async (leaveId: string, status: 'accepted' | 'rejected') => {
+    try {
+      const adminSecret = getAdminSecret();
+      console.log(`[AdminDashboard] ${status} leave ${leaveId}`);
+      const res = await fetch(`${API}/api/leaves/admin/${leaveId}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-secret": adminSecret
+        },
+        body: JSON.stringify({ status })
+      });
+
+      if (!res.ok) {
+        alert(`Failed to ${status} leave`);
+        return;
+      }
+
+      console.log(`[AdminDashboard] Successfully ${status} leave`);
+      setPendingLeavesFromBackend(prev => prev.filter(l => l._id !== leaveId));
+      // Also update the local state
+      setLeaves(prev => prev.map(l => l.id === leaveId ? { ...l, status } : l));
+      await fetchPendingLeaves(); // Refresh list
+    } catch (err) {
+      console.error(`[AdminDashboard] Error ${status} leave:`, err);
+      alert(`Error: ${(err as Error).message}`);
+    }
+  };
+
+  const approveAdvance = async (advanceId: string, status: 'approved' | 'rejected' | 'scheduled', paymentDate?: string) => {
+    try {
+      const adminSecret = getAdminSecret();
+      console.log(`[AdminDashboard] ${status} advance ${advanceId}`);
+      const body: any = { status };
+      if (status === 'scheduled' && paymentDate) {
+        body.paymentDate = paymentDate;
+      }
+
+      const res = await fetch(`${API}/api/advances/admin/${advanceId}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-secret": adminSecret
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (!res.ok) {
+        alert(`Failed to ${status} advance`);
+        return;
+      }
+
+      console.log(`[AdminDashboard] Successfully ${status} advance`);
+      setPendingAdvancesFromBackend(prev => prev.filter(a => a._id !== advanceId));
+      // Also update the local state
+      setAdvanceRequests(prev => prev.map(a => 
+        a.id === advanceId ? { ...a, status, paymentDate } : a
+      ));
+      await fetchPendingAdvances(); // Refresh list
+    } catch (err) {
+      console.error(`[AdminDashboard] Error ${status} advance:`, err);
+      alert(`Error: ${(err as Error).message}`);
+    }
+  };
+
+  // Fetch pending leaves and advances on mount
+  useEffect(() => {
+    fetchPendingLeaves();
+    fetchPendingAdvances();
+    fetchPendingAttendance();
+    
+    // Refresh every 8-10 seconds
+    const interval = setInterval(() => {
+      fetchPendingLeaves();
+      fetchPendingAdvances();
+      fetchPendingAttendance();
+    }, 8000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
   const fetchPendingAttendance = async () => {
     try {
@@ -80,14 +220,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setBackendOk(false);
     }
   };
-
-  useEffect(() => {
-    fetchPendingAttendance();
-
-    // ✅ auto refresh every 8 seconds (so admin sees new requests)
-    const t = setInterval(fetchPendingAttendance, 8000);
-    return () => clearInterval(t);
-  }, []);
 
   const approveShift = async (id: string) => {
     try {
@@ -401,23 +533,23 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       )}
 
       {/* Pending Advances */}
-      {pendingAdvances.length > 0 && (
+      {(pendingAdvancesFromBackend.length > 0 || pendingAdvances.length > 0) && (
         <div className="space-y-4">
           <h3 className="text-xs font-bold text-green-600 uppercase flex items-center gap-2 ml-1">
             <Wallet size={14} /> Pending Advances
           </h3>
           <div className="space-y-3">
-            {pendingAdvances.map((r) => (
-              <div key={r.id} className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm space-y-4">
+            {(pendingAdvancesFromBackend.length > 0 ? pendingAdvancesFromBackend : pendingAdvances).map((r: any) => (
+              <div key={r._id || r.id} className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm space-y-4">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h4 className="text-sm font-bold text-gray-900">{r.workerName}</h4>
+                    <h4 className="text-sm font-bold text-gray-900">{r.workerName || 'Worker'}</h4>
                     <p className="text-xl font-black text-green-600">{r.amount} SAR</p>
                   </div>
                   <span className="text-[10px] font-bold text-gray-400 uppercase">{r.requestDate}</span>
                 </div>
 
-                {schedulingReqId === r.id ? (
+                {schedulingReqId === (r._id || r.id) ? (
                   <div className="space-y-3 p-3 bg-blue-50 rounded-2xl">
                     <input
                       type="date"
@@ -433,7 +565,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         Cancel
                       </button>
                       <button
-                        onClick={() => decideAdvance(r.id, "scheduled", scheduleDate)}
+                        onClick={() => approveAdvance(r._id || r.id, "scheduled", scheduleDate)}
                         className="flex-1 bg-blue-600 text-white text-[10px] font-bold py-2 rounded-xl"
                       >
                         Confirm
@@ -443,19 +575,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 ) : (
                   <div className="grid grid-cols-3 gap-2">
                     <button
-                      onClick={() => decideAdvance(r.id, "rejected")}
+                      onClick={() => approveAdvance(r._id || r.id, "rejected")}
                       className="bg-red-50 text-red-600 text-[10px] font-bold py-3 rounded-xl"
                     >
                       Reject
                     </button>
                     <button
-                      onClick={() => setSchedulingReqId(r.id)}
+                      onClick={() => setSchedulingReqId(r._id || r.id)}
                       className="bg-blue-50 text-blue-600 text-[10px] font-bold py-3 rounded-xl"
                     >
                       Schedule
                     </button>
                     <button
-                      onClick={() => decideAdvance(r.id, "approved")}
+                      onClick={() => approveAdvance(r._id || r.id, "approved")}
                       className="bg-green-600 text-white text-[10px] font-bold py-3 rounded-xl shadow-lg shadow-green-100"
                     >
                       Pay Now
@@ -469,18 +601,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       )}
 
       {/* Pending Leaves */}
-      {pendingLeaves.length > 0 && (
+      {(pendingLeavesFromBackend.length > 0 || pendingLeaves.length > 0) && (
         <div className="space-y-4">
           <h3 className="text-xs font-bold text-blue-600 uppercase flex items-center gap-2 ml-1">
             <Calendar size={14} /> Pending Leaves
           </h3>
           <div className="space-y-3">
-            {pendingLeaves.map((l) => (
-              <div key={l.id} className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm space-y-4">
+            {(pendingLeavesFromBackend.length > 0 ? pendingLeavesFromBackend : pendingLeaves).map((l: any) => (
+              <div key={l._id || l.id} className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm space-y-4">
                 <div className="flex justify-between items-start">
                   <div>
                     <h4 className="text-sm font-bold text-gray-900">
-                      {workers.find((w) => w.id === l.workerId)?.name}
+                      {workers.find((w) => w.id === l.workerId)?.name || l.workerId}
                     </h4>
                     <p className="text-xs font-bold text-blue-500 uppercase tracking-tighter">{l.date}</p>
                   </div>
@@ -491,13 +623,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <p className="text-xs text-gray-600 italic px-3 border-l-2 border-gray-100">"{l.reason}"</p>
                 <div className="grid grid-cols-2 gap-3">
                   <button
-                    onClick={() => decideLeave(l.id, "rejected")}
+                    onClick={() => approveLeave(l._id || l.id, "rejected")}
                     className="bg-gray-50 text-gray-400 text-xs font-bold py-3 rounded-xl"
                   >
                     Reject
                   </button>
                   <button
-                    onClick={() => decideLeave(l.id, "accepted")}
+                    onClick={() => approveLeave(l._id || l.id, "accepted")}
                     className="bg-blue-600 text-white text-xs font-bold py-3 rounded-xl shadow-lg shadow-blue-100"
                   >
                     Approve

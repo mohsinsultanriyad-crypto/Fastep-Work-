@@ -38,37 +38,79 @@ const WorkerApp: React.FC<WorkerAppProps> = ({
 
     (async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/work/list-by-user/${userId}`, {
+        // ===== LOAD SHIFTS =====
+        const shiftsRes = await fetch(`${API_BASE_URL}/api/work/list-by-user/${userId}`, {
           headers: { 'Content-Type': 'application/json' }
         });
-        if (!res.ok) {
-          // Replace state with empty array to maintain single source of truth
+        if (shiftsRes.ok) {
+          const data = await shiftsRes.json();
+          // Ensure each shift has a `date` field; derive from startTime if missing
+          const normalized = (Array.isArray(data) ? data : []).map((s: any) => ({
+            _id: s._id || s.id,
+            id: s._id || s.id,
+            workerId: s.workerId,
+            date: s.date || (s.startTime ? new Date(Number(s.startTime)).toISOString().slice(0,10) : ''),
+            startTime: s.startTime,
+            endTime: s.endTime,
+            breakMinutes: s.breakMinutes || 0,
+            notes: s.notes || '',
+            status: s.status || 'pending',
+            isApproved: !!s.isApproved,
+            totalHours: s.totalHours || 0
+          }));
+          setShifts(normalized as any);
+        } else {
           setShifts([]);
-          return;
         }
-        const data = await res.json();
-        // Ensure each shift has a `date` field; derive from startTime if missing
-        const normalized = (Array.isArray(data) ? data : []).map((s: any) => ({
-          _id: s._id || s.id,
-          id: s._id || s.id,
-          workerId: s.workerId,
-          date: s.date || (s.startTime ? new Date(Number(s.startTime)).toISOString().slice(0,10) : ''),
-          startTime: s.startTime,
-          endTime: s.endTime,
-          breakMinutes: s.breakMinutes || 0,
-          notes: s.notes || '',
-          status: s.status || 'pending',
-          isApproved: !!s.isApproved,
-          totalHours: s.totalHours || 0
-        }));
 
-        // Replace local shifts state with server-provided list (even empty)
-        setShifts(normalized as any);
+        // ===== LOAD LEAVES =====
+        const leavesRes = await fetch(`${API_BASE_URL}/api/leaves/list-by-user/${userId}`, {
+          headers: { 'Content-Type': 'application/json' }
+        });
+        if (leavesRes.ok) {
+          const leavesData = await leavesRes.json();
+          const normalizedLeaves = (Array.isArray(leavesData) ? leavesData : []).map((l: any) => ({
+            id: l._id || l.id,
+            workerId: l.workerId,
+            date: l.date,
+            reason: l.reason || '',
+            status: l.status as 'pending' | 'accepted' | 'rejected'
+          }));
+          console.log('[WorkerApp] Loaded leaves:', normalizedLeaves);
+          setLeaves(normalizedLeaves);
+        } else {
+          setLeaves([]);
+        }
+
+        // ===== LOAD ADVANCES =====
+        const advancesRes = await fetch(`${API_BASE_URL}/api/advances/list-by-user/${userId}`, {
+          headers: { 'Content-Type': 'application/json' }
+        });
+        if (advancesRes.ok) {
+          const advancesData = await advancesRes.json();
+          const normalizedAdvances = (Array.isArray(advancesData) ? advancesData : []).map((a: any) => ({
+            id: a._id || a.id,
+            workerId: a.workerId,
+            workerName: user.name,
+            amount: a.amount,
+            reason: a.reason || '',
+            requestDate: a.requestDate,
+            status: a.status as 'pending' | 'approved' | 'rejected' | 'scheduled',
+            paymentDate: a.paymentDate
+          }));
+          console.log('[WorkerApp] Loaded advances:', normalizedAdvances);
+          setAdvanceRequests(normalizedAdvances);
+        } else {
+          setAdvanceRequests([]);
+        }
       } catch (e) {
-        console.warn('[WorkerApp] Failed to load worker history:', e);
+        console.warn('[WorkerApp] Failed to load worker data:', e);
+        setShifts([]);
+        setLeaves([]);
+        setAdvanceRequests([]);
       }
     })();
-  }, [user, setShifts]);
+  }, [user, setShifts, setLeaves, setAdvanceRequests]);
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'history' | 'feed' | 'profile'>('dashboard');
 
