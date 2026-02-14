@@ -22,5 +22,5 @@ services:
     publishPath: dist
     envVars:
       - key: VITE_API_BASE
-        # After backend is provisioned, set this to: https://<your-backend>.onrender.com/api
-        value: ""
+        # Points to your deployed backend API
+        value: "https://fastep-work.onrender.com/api"
