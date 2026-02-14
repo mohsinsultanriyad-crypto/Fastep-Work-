@@ -35,7 +35,8 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // Allow all preflight requests to be handled by CORS middleware
-app.options("*", cors());
+// Use a regex path to avoid path-to-regexp parsing errors on some Node.js versions
+app.options(/.*/, cors(corsOptions));
 
 // Defensive headers (ensure presence even when errors occur)
 app.use((req, res, next) => {
