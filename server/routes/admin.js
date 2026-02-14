@@ -36,6 +36,30 @@ router.get("/pending", async(req,res)=>{
     }
 });
 
+// GET ALL WORKERS (admin-only, protected by x-admin-secret header)
+router.get("/workers", async(req,res)=>{
+    try {
+        const adminSecret = req.headers["x-admin-secret"];
+        const expectedSecret = process.env.ADMIN_SECRET;
+
+        if (!adminSecret || adminSecret !== expectedSecret) {
+            console.warn("[Admin/Workers] Unauthorized attempt (invalid or missing secret)");
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+
+        console.log(`[Admin/Workers] Fetching all workers from database`);
+
+        const workers = await User.find({ role: "worker" })
+            .select("_id workerId name phone role createdAt")
+            .sort({ createdAt: -1 });
+
+        console.log(`[Admin/Workers] Found ${workers.length} workers`);
+        res.json(workers);
+    } catch (e) {
+        console.error("[Admin/Workers] Error:", e);
+        res.status(500).json({ message: "Error fetching workers", error: e.message });
+    }
+});
 
 // APPROVE
 router.post("/approve/:id", async(req,res)=>{
