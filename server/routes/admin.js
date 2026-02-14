@@ -220,7 +220,20 @@ router.post("/create-worker", async(req,res)=>{
         console.log(`[Admin/CreateWorker] POST request received`);
         console.log(`[Admin/CreateWorker] Content-Type: "${req.headers['content-type']}"`);
         console.log(`[Admin/CreateWorker] req.body type:`, typeof req.body, req.body === undefined ? 'UNDEFINED' : 'present');
+        
+        // SAFE DESTRUCTURE: Handle undefined req.body
+        if (!req.body) {
+            console.error("[Admin/CreateWorker] ❌ Request body is undefined!");
+            return res.status(400).json({ 
+                message: "Create worker failed", 
+                error: "Request body is missing or not properly formatted as JSON" 
+            });
+        }
+
         console.log(`[Admin/CreateWorker] req.body:`, JSON.stringify(req.body, null, 2));
+
+        const { name, workerId, phone, password, role = "worker" } = req.body;
+
         console.log(`[Admin/CreateWorker] Header x-admin-secret: "${adminSecret}"`);
         console.log(`[Admin/CreateWorker] Expected ADMIN_SECRET: "${expectedSecret}"`);
         console.log(`[Admin/CreateWorker] Match: ${adminSecret === expectedSecret}`);
@@ -229,8 +242,6 @@ router.post("/create-worker", async(req,res)=>{
             console.warn("[Admin/CreateWorker] ❌ Unauthorized attempt (invalid or missing secret)");
             return res.status(401).json({ message: "Unauthorized" });
         }
-
-        const { name, workerId, phone, password, role = "worker" } = req.body;
 
         console.log(`[Admin/CreateWorker] Body: name="${name}", workerId="${workerId}", phone="${phone}", role="${role}"`);
 

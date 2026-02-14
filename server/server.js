@@ -5,10 +5,14 @@ require("dotenv").config();
 
 const app = express();
 
-// ✅ CORS OPTIONS (Express v5 safe)
+// ✅ BODY PARSERS (MUST BE FIRST, before all other middleware to ensure req.body is parsed)
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+// ✅ ENV
 const isDev = process.env.NODE_ENV !== "production";
 
-// Allowed origins for production (frontend + common dev host)
+// ✅ Allowed origins (production)
 const allowedOrigins = [
   "https://fastep-work-1.onrender.com",
   "http://localhost:5173",
@@ -16,51 +20,42 @@ const allowedOrigins = [
   "http://127.0.0.1:3000",
 ];
 
+// ✅ CORS config
 const corsOptions = {
   origin: (origin, cb) => {
-    // Allow server-to-server or tools with no origin
+    // allow server-to-server/tools with no origin (Postman/curl)
     if (!origin) return cb(null, true);
+
+    // dev: allow all
     if (isDev) return cb(null, true);
+
+    // github codespaces
     if (origin.endsWith(".app.github.dev")) return cb(null, true);
+
+    // production allowlist
     if (allowedOrigins.includes(origin)) return cb(null, true);
+
     return cb(new Error("Not allowed by CORS: " + origin));
   },
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "x-admin-secret"],
-  optionsSuccessStatus: 200,
   credentials: true,
+  optionsSuccessStatus: 200,
 };
 
-// Apply CORS before routes
+// ✅ Apply CORS (after body parsers, before routes)
 app.use(cors(corsOptions));
+app.options("*", cors(corsOptions)); // preflight for all routes
 
-// Allow all preflight requests to be handled by CORS middleware
-// Use a regex path to avoid path-to-regexp parsing errors on some Node.js versions
-app.options(/.*/, cors(corsOptions));
-
-// Defensive headers (ensure presence even when errors occur)
+// ✅ Debug logger (keep for now, remove later if you want)
 app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (!origin) return next();
-
-  const allowed = isDev || origin.endsWith(".app.github.dev") || allowedOrigins.includes(origin);
-
-  if (allowed) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-    res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization,x-admin-secret");
-    res.setHeader("Access-Control-Allow-Credentials", "true");
+  if (["POST", "PUT", "PATCH"].includes(req.method)) {
+    console.log(`[${req.method}] ${req.originalUrl}`);
+    console.log("  Content-Type:", req.headers["content-type"]);
+    console.log("  Body:", req.body);
   }
-
-  if (req.method === "OPTIONS") {
-    console.log("Handled OPTIONS preflight for", origin, req.originalUrl);
-    return res.sendStatus(200);
-  }
-
   next();
 });
-
-app.use(express.json());
 
 // ✅ Root
 app.get("/", (req, res) => res.send("API Running ✅"));
@@ -69,7 +64,7 @@ app.get("/", (req, res) => res.send("API Running ✅"));
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB Connected"))
-  .catch((err) => console.log(err));
+  .catch((err) => console.log("❌ Mongo Error:", err.message));
 
 // ✅ Routes
 app.use("/api/auth", require("./routes/auth"));
@@ -77,6 +72,12 @@ app.use("/api/work", require("./routes/work"));
 app.use("/api/admin", require("./routes/admin"));
 app.use("/api/leaves", require("./routes/leaves"));
 app.use("/api/advances", require("./routes/advances"));
+
+// ✅ Error handler (helps see real errors instead of crash)
+app.use((err, req, res, next) => {
+  console.error("❌ Server Error:", err.message);
+  res.status(500).json({ message: "Server error", error: err.message });
+});
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, "0.0.0.0", () => {

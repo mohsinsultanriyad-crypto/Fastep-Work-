@@ -5,7 +5,8 @@ services:
     region: oregon
     branch: main
     plan: free
-    buildCommand: cd server && npm install
+    rootDirectory: server
+    buildCommand: npm install
     startCommand: npm start
     envVars:
       - key: MONGO_URI
