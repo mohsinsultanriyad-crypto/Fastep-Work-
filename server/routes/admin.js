@@ -1,5 +1,7 @@
 const router = require("express").Router();
 const Work = require("../models/Work");
+const User = require("../models/User");
+const bcrypt = require("bcryptjs");
 
 // DEBUG: GET ALL WORK
 router.get("/debug/all-work", async(req,res)=>{
@@ -82,6 +84,48 @@ router.delete("/clear-all", async(req,res)=>{
     } catch (e) {
         console.error("[Admin/ClearAll] Error:", e);
         res.status(500).json({ message: "Delete failed", error: e.message });
+    }
+});
+
+// RESET PASSWORD (admin-only, protected by x-admin-secret header)
+router.patch("/reset-password", async(req,res)=>{
+    try {
+        const adminSecret = req.headers["x-admin-secret"];
+        const expectedSecret = process.env.ADMIN_SECRET;
+
+        if (!adminSecret || adminSecret !== expectedSecret) {
+            console.warn("[Admin/ResetPwd] Unauthorized attempt (invalid or missing secret)");
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+
+        const { userId, newPassword } = req.body;
+
+        if (!userId || !newPassword) {
+            return res.status(400).json({ message: "userId and newPassword are required" });
+        }
+
+        console.log(`[Admin/ResetPwd] Resetting password for user: ${userId}`);
+
+        // Hash the new password
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        // Update user's password in database
+        const updatedUser = await User.findByIdAndUpdate(userId, { password: hashedPassword }, { new: true });
+
+        if (!updatedUser) {
+            console.warn(`[Admin/ResetPwd] User not found: ${userId}`);
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        console.log(`[Admin/ResetPwd] Password reset successfully for user: ${userId}`);
+        res.json({ 
+            message: "Password reset successfully",
+            userId: updatedUser._id,
+            userName: updatedUser.name
+        });
+    } catch (e) {
+        console.error("[Admin/ResetPwd] Error:", e);
+        res.status(500).json({ message: "Password reset failed", error: e.message });
     }
 });
 
