@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { User, Leave, AdvanceRequest } from '../types';
 import { LEAVE_REASONS } from '../constants';
 import { LogOut, Phone, Briefcase, DollarSign, PlusCircle, ChevronRight, X, CheckCircle, Wallet, History, Database, DownloadCloud, UploadCloud, FileCheck } from 'lucide-react';
-import { API_BASE_URL } from '../api';
 
 interface ProfileProps {
   user: User;
@@ -18,7 +17,6 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout, leaves, setLeaves, ad
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [showAdvanceModal, setShowAdvanceModal] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   
   const [leaveReason, setLeaveReason] = useState('');
   const [customReason, setCustomReason] = useState('');
@@ -27,126 +25,82 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout, leaves, setLeaves, ad
   const [advanceAmount, setAdvanceAmount] = useState('');
   const [advanceReason, setAdvanceReason] = useState('');
 
-  const handleApplyLeave = async () => {
+  const handleApplyLeave = () => {
     if (!setLeaves) {
       console.error("setLeaves not provided to Profile");
       return;
     }
-
     const finalReason = leaveReason === 'Other' ? customReason : leaveReason;
     if (!finalReason) {
       alert("Please select a reason");
       return;
     }
 
-    setIsLoading(true);
-    try {
-      const userId = (user as any)._id || (user as any).id;
-      const payload = {
-        userId,
-        workerId: user.workerId || user.id,
-        date: leaveDate,
-        reason: finalReason
-      };
-
-      console.log("[Profile/ApplyLeave] Sending:", payload);
-
-      const res = await fetch(`${API_BASE_URL}/api/leaves/apply`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.message || 'Failed to apply leave');
-      }
-
-      const newLeave = await res.json();
-      console.log("[Profile/ApplyLeave] Success:", newLeave);
-
-      setLeaves(prev => [...prev, newLeave]);
-      setIsSuccess(true);
-      
-      setTimeout(() => { 
-        setShowLeaveModal(false); 
-        setIsSuccess(false); 
-        setLeaveReason(''); 
-        setCustomReason(''); 
-      }, 1500);
-    } catch (err) {
-      console.error("[Profile/ApplyLeave] Error:", err);
-      alert("Failed to apply leave: " + (err as Error).message);
-    } finally {
-      setIsLoading(false);
-    }
+    const newLeave: Leave = {
+      id: Math.random().toString(36).substr(2, 9),
+      workerId: user.id,
+      date: leaveDate,
+      reason: finalReason,
+      status: 'pending'
+    };
+    
+    setLeaves(prev => [...prev, newLeave]);
+    setIsSuccess(true);
+    setTimeout(() => { 
+      setShowLeaveModal(false); 
+      setIsSuccess(false); 
+      setLeaveReason(''); 
+      setCustomReason(''); 
+    }, 1500);
   };
 
-  const handleApplyAdvance = async () => {
-    if (!setAdvanceRequests || !advanceAmount || !advanceReason) {
-      alert("Please fill in all fields");
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const userId = (user as any)._id || (user as any).id;
-      const payload = {
-        userId,
-        workerId: user.workerId || user.id,
-        amount: Number(advanceAmount),
-        reason: advanceReason,
-        requestDate: new Date().toISOString().split('T')[0]
-      };
-
-      console.log("[Profile/ApplyAdvance] Sending:", payload);
-
-      const res = await fetch(`${API_BASE_URL}/api/advances/request`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.message || 'Failed to request advance');
-      }
-
-      const newAdvance = await res.json();
-      console.log("[Profile/ApplyAdvance] Success:", newAdvance);
-
-      setAdvanceRequests(prev => [...prev, { 
-        id: newAdvance._id || newAdvance.id,
-        workerId: newAdvance.workerId,
-        workerName: user.name,
-        amount: newAdvance.amount,
-        reason: newAdvance.reason,
-        requestDate: newAdvance.requestDate,
-        status: newAdvance.status as 'pending' | 'approved' | 'rejected' | 'scheduled',
-        paymentDate: newAdvance.paymentDate
-      }]);
-      setIsSuccess(true);
-      
-      setTimeout(() => { 
-        setShowAdvanceModal(false); 
-        setIsSuccess(false); 
-        setAdvanceAmount(''); 
-        setAdvanceReason(''); 
-      }, 1500);
-    } catch (err) {
-      console.error("[Profile/ApplyAdvance] Error:", err);
-      alert("Failed to request advance: " + (err as Error).message);
-    } finally {
-      setIsLoading(false);
-    }
+  const handleApplyAdvance = () => {
+    if (!setAdvanceRequests || !advanceAmount || !advanceReason) return;
+    const newReq: AdvanceRequest = {
+      id: Math.random().toString(36).substr(2, 9),
+      workerId: user.id,
+      workerName: user.name,
+      amount: Number(advanceAmount),
+      reason: advanceReason,
+      requestDate: new Date().toISOString().split('T')[0],
+      status: 'pending'
+    };
+    setAdvanceRequests(prev => [...prev, newReq]);
+    setIsSuccess(true);
+    setTimeout(() => { setShowAdvanceModal(false); setIsSuccess(false); setAdvanceAmount(''); setAdvanceReason(''); }, 1500);
   };
 
   const backupData = () => {
-    alert('Backup of work data is disabled in the client. All work data is stored on the server and can be exported from backend admin tools.');
+    const data = {
+      shifts: localStorage.getItem('fw_shifts'),
+      leaves: localStorage.getItem('fw_leaves'),
+      workers: localStorage.getItem('fw_workers'),
+      advance: localStorage.getItem('fw_advance')
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `FASTEP_Backup_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
   };
 
   const restoreData = (e: React.ChangeEvent<HTMLInputElement>) => {
-    alert('Client-side restore is disabled. Please use server-side import tools to restore work data.');
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target?.result as string);
+        if (data.shifts) localStorage.setItem('fw_shifts', data.shifts);
+        if (data.leaves) localStorage.setItem('fw_leaves', data.leaves);
+        if (data.workers) localStorage.setItem('fw_workers', data.workers);
+        if (data.advance) localStorage.setItem('fw_advance', data.advance);
+        alert("Restore successful! App will reload.");
+        window.location.reload();
+      } catch (err) { alert("Invalid backup file."); }
+    };
+    reader.readAsText(file);
   };
 
   const myAdvanceRequests = advanceRequests?.filter(r => r.workerId === user.id) || [];
@@ -257,7 +211,7 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout, leaves, setLeaves, ad
                   <input type="number" value={advanceAmount} onChange={(e) => setAdvanceAmount(e.target.value)} placeholder="Amount (SAR)" className="w-full bg-gray-50 border border-gray-100 p-4 rounded-2xl text-lg font-bold" />
                   <textarea value={advanceReason} onChange={(e) => setAdvanceReason(e.target.value)} placeholder="Reason..." className="w-full bg-gray-50 border border-gray-100 p-4 rounded-2xl text-sm h-24" />
                 </div>
-                <button onClick={handleApplyAdvance} disabled={isLoading} className="w-full bg-green-600 text-white font-bold py-4 rounded-2xl active:scale-95 shadow-lg shadow-green-100 disabled:opacity-50 transition-all">{isLoading ? 'Submitting...' : 'Submit Request'}</button>
+                <button onClick={handleApplyAdvance} className="w-full bg-green-600 text-white font-bold py-4 rounded-2xl active:scale-95 shadow-lg shadow-green-100">Submit Request</button>
               </>
             ) : (
               <div className="py-10 flex flex-col items-center text-center space-y-4"><div className="bg-green-100 p-4 rounded-full text-green-600"><CheckCircle size={48} /></div><h3 className="text-xl font-bold text-gray-900">Request Sent!</h3></div>
@@ -289,7 +243,7 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout, leaves, setLeaves, ad
                     <textarea value={customReason} onChange={(e) => setCustomReason(e.target.value)} placeholder="Tell us more..." className="w-full bg-gray-50 border border-gray-100 p-4 rounded-2xl text-sm h-24" />
                   )}
                 </div>
-                <button onClick={handleApplyLeave} disabled={!leaveReason || (leaveReason === 'Other' && !customReason) || isLoading} className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-100 disabled:opacity-50 transition-all">{isLoading ? 'Submitting...' : 'Submit Request'}</button>
+                <button onClick={handleApplyLeave} disabled={!leaveReason || (leaveReason === 'Other' && !customReason)} className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-100 disabled:opacity-50">Submit Request</button>
               </>
             ) : (
               <div className="py-10 flex flex-col items-center text-center space-y-4"><div className="bg-green-100 p-4 rounded-full text-green-600 animate-bounce"><CheckCircle size={48} /></div><h3 className="text-xl font-bold text-gray-900">Request Sent!</h3></div>
