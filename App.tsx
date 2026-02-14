@@ -7,7 +7,10 @@ import AdminApp from './components/AdminApp';
 import Login from './components/Login';
 
 const App: React.FC = () => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  // Hydrate auth from localStorage synchronously so refresh keeps user logged in
+  const savedAuth = typeof window !== 'undefined' ? localStorage.getItem('fastep_auth') : null;
+  const initialUser = savedAuth ? (JSON.parse(savedAuth) as User) : null;
+  const [currentUser, setCurrentUser] = useState<User | null>(initialUser);
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [leaves, setLeaves] = useState<Leave[]>([]);
   const [posts, setPosts] = useState<SitePost[]>([]);
@@ -48,10 +51,20 @@ const App: React.FC = () => {
 
   const handleLogin = (user: User) => {
     setCurrentUser(user);
+    try {
+      localStorage.setItem('fastep_auth', JSON.stringify(user));
+    } catch (e) {
+      console.warn('Failed to persist auth:', e);
+    }
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
+    try {
+      localStorage.removeItem('fastep_auth');
+    } catch (e) {
+      console.warn('Failed to clear auth:', e);
+    }
   };
 
   if (!currentUser) {
