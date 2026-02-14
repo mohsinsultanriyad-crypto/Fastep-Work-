@@ -16,6 +16,21 @@ import {
 
 import { API_BASE_URL as API, ADMIN_SECRET, adminHeaders } from "../api";
 
+// DEBUG: Log all environment variables to diagnose VITE_ADMIN_SECRET loading
+console.log(
+  "%c[AdminDashboard] FULL import.meta.env object:",
+  "color: #ff6b6b; font-weight: bold; font-size: 13px;"
+);
+console.table((import.meta as any)?.env);
+console.log(
+  "%c[AdminDashboard] Checking specific VITE variables:",
+  "color: #ff6b6b; font-weight: bold;"
+);
+console.log("  VITE_ADMIN_SECRET value:", (import.meta as any)?.env?.VITE_ADMIN_SECRET ? "***SET***" : "NOT SET");
+console.log("  VITE_ADMIN_SECRET raw:", (import.meta as any)?.env?.VITE_ADMIN_SECRET || "(undefined/empty)");
+console.log("  VITE_API_BASE_URL value:", (import.meta as any)?.env?.VITE_API_BASE_URL || "(undefined)");
+console.log("%c[AdminDashboard] Exported ADMIN_SECRET from api.ts:", "color: #00bcd4;", ADMIN_SECRET ? "***set***" : "NOT SET");
+
 interface AdminDashboardProps {
   shifts: Shift[];
   setShifts: React.Dispatch<React.SetStateAction<Shift[]>>;

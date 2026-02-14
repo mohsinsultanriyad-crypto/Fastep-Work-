@@ -7,6 +7,19 @@ export const API_BASE_URL =
 // CRITICAL: Must be set via VITE_ADMIN_SECRET in Render Frontend environment
 export const ADMIN_SECRET = (import.meta as any)?.env?.VITE_ADMIN_SECRET || '';
 
+// DEBUG: Log environment at module load time
+console.log(
+	"%c[api.ts] Environment Loading Debug (Module Load Time)",
+	"color: #ff9800; font-weight: bold; font-size: 13px;",
+);
+console.log("%c  API_BASE_URL:", "color: #00bcd4;", API_BASE_URL);
+console.log("%c  ADMIN_SECRET loaded:", "color: #00bcd4;", ADMIN_SECRET ? "YES (***set***)" : "NO (empty string)");
+console.log(
+	"%c  Raw import.meta.env.VITE_ADMIN_SECRET:",
+	"color: #00bcd4;",
+	(import.meta as any)?.env?.VITE_ADMIN_SECRET || "(undefined)"
+);
+
 // One-time warning if ADMIN_SECRET not set
 if (!ADMIN_SECRET) {
 	console.warn(
