@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: fastep-backend
+    env: node
+    region: oregon
+    branch: main
+    plan: free
+    buildCommand: cd server && npm install
+    startCommand: cd server && node server.js
+    envVars:
+      - key: MONGO_URI
+        # Leave value empty here; set this secret in the Render dashboard
+        value: ""
+
+  - type: static
+    name: fastep-frontend
+    env: static
+    region: oregon
+    branch: main
+    plan: free
+    buildCommand: npm install && npm run build
+    publishPath: dist
+    envVars:
+      - key: VITE_API_BASE
+        # After backend is provisioned, set this to: https://<your-backend>.onrender.com/api
+        value: ""
