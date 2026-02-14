@@ -6,7 +6,7 @@ services:
     branch: main
     plan: free
     buildCommand: cd server && npm install
-    startCommand: cd server && node server.js
+    startCommand: npm start
     envVars:
       - key: MONGO_URI
         # Leave value empty here; set this secret in the Render dashboard
