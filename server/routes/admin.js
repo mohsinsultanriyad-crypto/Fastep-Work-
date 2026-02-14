@@ -219,7 +219,7 @@ router.post("/create-worker", async(req,res)=>{
 
         // Hash password with bcrypt
         const hashedPassword = await bcrypt.hash(password, 10);
-        console.log(`[Admin/CreateWorker] Password hashed (starts with $2): ${hashedPassword.startsWith("$2")}`);
+        console.log(`[Admin/CreateWorker] Password hashed for "${password}": ${hashedPassword.substring(0, 20)}... (starts with $2: ${hashedPassword.startsWith("$2")})`);
 
         // Create user
         const user = await User.create({
@@ -230,7 +230,8 @@ router.post("/create-worker", async(req,res)=>{
             role: role
         });
 
-        console.log(`[Admin/CreateWorker] Successfully created worker: ${user.name} (${normalizedWorkerId})`);
+        console.log(`[Admin/CreateWorker] ✅ Successfully created worker: ${user.name} (${normalizedWorkerId})`);
+        console.log(`[Admin/CreateWorker] Saved details - workerId: ${user.workerId} | password: ${user.password.substring(0, 20)}...`);
         
         res.json({ 
             message: "Worker created successfully",
