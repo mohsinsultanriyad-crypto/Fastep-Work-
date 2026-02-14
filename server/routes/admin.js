@@ -193,33 +193,42 @@ router.post("/create-worker", async(req,res)=>{
         const adminSecret = req.headers["x-admin-secret"];
         const expectedSecret = process.env.ADMIN_SECRET;
 
+        console.log(`[Admin/CreateWorker] POST request received`);
+        console.log(`[Admin/CreateWorker] Header x-admin-secret: "${adminSecret}"`);
+        console.log(`[Admin/CreateWorker] Expected ADMIN_SECRET: "${expectedSecret}"`);
+        console.log(`[Admin/CreateWorker] Match: ${adminSecret === expectedSecret}`);
+
         if (!adminSecret || adminSecret !== expectedSecret) {
-            console.warn("[Admin/CreateWorker] Unauthorized attempt (invalid or missing secret)");
+            console.warn("[Admin/CreateWorker] ❌ Unauthorized attempt (invalid or missing secret)");
             return res.status(401).json({ message: "Unauthorized" });
         }
 
         const { name, workerId, phone, password, role = "worker" } = req.body;
 
+        console.log(`[Admin/CreateWorker] Body: name="${name}", workerId="${workerId}", phone="${phone}", role="${role}"`);
+
         // Validate required fields
         if (!name || !workerId || !password) {
+            console.warn(`[Admin/CreateWorker] ❌ Missing required fields`);
             return res.status(400).json({ message: "name, workerId, and password are required" });
         }
 
         // Normalize workerId: trim and uppercase
         const normalizedWorkerId = workerId.trim().toUpperCase();
         
-        console.log(`[Admin/CreateWorker] Creating worker with workerId: ${normalizedWorkerId}`);
+        console.log(`[Admin/CreateWorker] Creating worker with workerId: ${normalizedWorkerId} (input was: "${workerId}")`);
 
         // Check if worker already exists
         const existingUser = await User.findOne({ workerId: normalizedWorkerId });
         if (existingUser) {
-            console.warn(`[Admin/CreateWorker] Worker already exists: ${normalizedWorkerId}`);
+            console.warn(`[Admin/CreateWorker] ❌ Worker already exists: ${normalizedWorkerId}`);
             return res.status(400).json({ message: "Worker with this workerId already exists" });
         }
 
         // Hash password with bcrypt
+        console.log(`[Admin/CreateWorker] Hashing password: "${password}"`);
         const hashedPassword = await bcrypt.hash(password, 10);
-        console.log(`[Admin/CreateWorker] Password hashed for "${password}": ${hashedPassword.substring(0, 20)}... (starts with $2: ${hashedPassword.startsWith("$2")})`);
+        console.log(`[Admin/CreateWorker] Password hashed (${password}) -> ${hashedPassword.substring(0, 20)}... (starts with $2: ${hashedPassword.startsWith("$2")})`);
 
         // Create user
         const user = await User.create({
@@ -231,7 +240,7 @@ router.post("/create-worker", async(req,res)=>{
         });
 
         console.log(`[Admin/CreateWorker] ✅ Successfully created worker: ${user.name} (${normalizedWorkerId})`);
-        console.log(`[Admin/CreateWorker] Saved details - workerId: ${user.workerId} | password: ${user.password.substring(0, 20)}...`);
+        console.log(`[Admin/CreateWorker] Saved to DB - _id: ${user._id}, workerId: ${user.workerId}, password: ${user.password.substring(0, 20)}...`);
         
         res.json({ 
             message: "Worker created successfully",
@@ -244,7 +253,8 @@ router.post("/create-worker", async(req,res)=>{
             }
         });
     } catch (e) {
-        console.error("[Admin/CreateWorker] Error:", e);
+        console.error("[Admin/CreateWorker] ❌ ERROR:", e.message);
+        console.error("[Admin/CreateWorker] Stack:", e.stack);
         if (e.code === 11000) {
             // Duplicate key error
             const field = Object.keys(e.keyPattern)[0];

@@ -33,6 +33,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, workers }) => {
       // Worker login - call backend API
       try {
         console.log("[Login] Authenticating worker:", userId);
+        console.log("[Login] Backend URL:", API_BASE_URL);
+        console.log("[Login] Sending workerId:", userId.trim().toUpperCase());
         
         const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
           method: "POST",
@@ -40,7 +42,10 @@ const Login: React.FC<LoginProps> = ({ onLogin, workers }) => {
           body: JSON.stringify({ workerId: userId, password })
         });
 
+        console.log("[Login] Response status:", res.status);
+        
         const data = await res.json();
+        console.log("[Login] Response data:", data);
 
         if (!res.ok) {
           console.warn("[Login] Login failed:", data);
@@ -49,7 +54,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, workers }) => {
           return;
         }
 
-        console.log("[Login] Success for workerId:", userId);
+        console.log("[Login] ✅ Successfully authenticated");
         // Store token in localStorage
         localStorage.setItem('fastep_auth', JSON.stringify({
           token: data.token,

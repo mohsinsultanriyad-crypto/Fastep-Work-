@@ -102,6 +102,17 @@ const AdminWorkerList: React.FC<AdminWorkerListProps> = ({ workers, setWorkers, 
       const adminSecret = (import.meta as any)?.env?.VITE_ADMIN_SECRET || "xyz_super_secret_admin_key_2026_9k7d4j3hL9m2w5p8q";
       
       console.log("[AdminWorkerList] Creating worker:", newWorker.workerId);
+      console.log("[AdminWorkerList] Using admin secret:", adminSecret ? `${adminSecret.substring(0, 20)}...` : "NOT SET");
+      console.log("[AdminWorkerList] API_BASE_URL:", API_BASE_URL);
+      
+      const payload = {
+        name: newWorker.name,
+        workerId: newWorker.workerId,
+        phone: newWorker.phone,
+        password: newWorker.password,
+        role: "worker"
+      };
+      console.log("[AdminWorkerList] Payload:", payload);
       
       const res = await fetch(`${API_BASE_URL}/api/admin/create-worker`, {
         method: "POST",
@@ -109,22 +120,21 @@ const AdminWorkerList: React.FC<AdminWorkerListProps> = ({ workers, setWorkers, 
           "Content-Type": "application/json",
           "x-admin-secret": adminSecret
         },
-        body: JSON.stringify({
-          name: newWorker.name,
-          workerId: newWorker.workerId,
-          phone: newWorker.phone,
-          password: newWorker.password,
-          role: "worker"
-        })
+        body: JSON.stringify(payload)
       });
 
+      console.log("[AdminWorkerList] Response status:", res.status, res.statusText);
+      
       const data = await res.json();
+      console.log("[AdminWorkerList] Response data:", data);
 
       if (!res.ok) {
-        console.error("[AdminWorkerList] Create failed:", data);
+        console.error("[AdminWorkerList] Create failed (not ok):", data);
         alert(`Failed to create worker: ${data.message || "Unknown error"}`);
         return;
       }
+
+      console.log("[AdminWorkerList] Create succeeded, response:", data);
 
       // Add to local state with the new user data
       const newUser: User = {
@@ -146,7 +156,7 @@ const AdminWorkerList: React.FC<AdminWorkerListProps> = ({ workers, setWorkers, 
       setShowAddModal(false);
       setNewWorker({ name: '', workerId: '', trade: '', monthlySalary: '', phone: '', password: 'password123', iqamaExpiry: '', passportExpiry: '' });
       
-      console.log(`[AdminWorkerList] Worker created successfully: ${newWorker.workerId}`);
+      console.log(`[AdminWorkerList] ✅ Worker created successfully: ${newWorker.workerId}`);
       alert(`✅ Worker ${newWorker.workerId} created successfully`);
     } catch (err) {
       console.error("[AdminWorkerList] Create error:", err);
