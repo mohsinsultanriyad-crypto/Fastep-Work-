@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { User, Shift, Leave, AdvanceRequest } from '../types';
 import { Search, Download, FileText, Edit2, X, CheckCircle, Loader2, History, UserPlus, Lock, ShieldCheck, ShieldAlert, Zap, AlertTriangle, Trash2 } from 'lucide-react';
 import { DAYS_IN_MONTH, BASE_HOURS } from '../constants';
-import { API_BASE_URL } from '../api';
+import { API_BASE_URL, ADMIN_SECRET, adminHeaders } from '../api';
 import WorkerHistory from './WorkerHistory';
 
 interface AdminWorkerListProps {
@@ -99,14 +99,8 @@ const AdminWorkerList: React.FC<AdminWorkerListProps> = ({ workers, setWorkers, 
     e.preventDefault();
     
     try {
-      const adminSecret = (import.meta as any)?.env?.VITE_ADMIN_SECRET || '';
-      
-      if (!adminSecret) {
-        console.warn("[AdminWorkerList] ⚠️ VITE_ADMIN_SECRET not set! Admin endpoints will fail with 401");
-      }
-      
       console.log("[AdminWorkerList] Creating worker:", newWorker.workerId);
-      console.log("[AdminWorkerList] Admin secret status:", adminSecret ? '***set***' : 'NOT SET');
+      console.log("[AdminWorkerList] Admin secret status:", ADMIN_SECRET ? '***set***' : 'NOT SET');
       console.log("[AdminWorkerList] API_BASE_URL:", API_BASE_URL);
       
       const payload = {
@@ -120,10 +114,7 @@ const AdminWorkerList: React.FC<AdminWorkerListProps> = ({ workers, setWorkers, 
       
       const res = await fetch(`${API_BASE_URL}/api/admin/create-worker`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-admin-secret": adminSecret
-        },
+        headers: adminHeaders({ "x-admin-secret": ADMIN_SECRET }),
         body: JSON.stringify(payload)
       });
 
@@ -174,20 +165,11 @@ const AdminWorkerList: React.FC<AdminWorkerListProps> = ({ workers, setWorkers, 
     }
 
     try {
-      const adminSecret = (import.meta as any)?.env?.VITE_ADMIN_SECRET || '';
-      
-      if (!adminSecret) {
-        console.warn("[AdminWorkerList] ⚠️ VITE_ADMIN_SECRET not set! Admin endpoints will fail with 401");
-      }
-      
-      console.log("[AdminWorkerList] Deleting worker:", worker.name, { secret: adminSecret ? '***set***' : 'NOT SET' });
+      console.log("[AdminWorkerList] Deleting worker:", worker.name, { secret: ADMIN_SECRET ? '***set***' : 'NOT SET' });
       
       const res = await fetch(`${API_BASE_URL}/api/admin/delete-user/${worker.id}`, {
         method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          "x-admin-secret": adminSecret
-        }
+        headers: adminHeaders({ "x-admin-secret": ADMIN_SECRET })
       });
 
       if (!res.ok) {

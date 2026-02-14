@@ -14,7 +14,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
-import { API_BASE_URL as API } from "../api";
+import { API_BASE_URL as API, ADMIN_SECRET, adminHeaders } from "../api";
 
 interface AdminDashboardProps {
   shifts: Shift[];
@@ -57,28 +57,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [pendingAttendance, setPendingAttendance] = useState<PendingWork[]>([]);
   const [backendOk, setBackendOk] = useState(true);
 
-  const getAdminSecret = () => {
-    // Get admin secret from env - MUST be set via VITE_ADMIN_SECRET
-    const secret = (import.meta as any)?.env?.VITE_ADMIN_SECRET;
-    if (!secret) {
-      console.warn('[AdminDashboard] ⚠️ VITE_ADMIN_SECRET is not set in environment variables.');
-      console.warn('[AdminDashboard] Admin endpoints will return 401 Unauthorized.');
-    } else {
-      console.log('[AdminDashboard] ✅ VITE_ADMIN_SECRET is present');
-    }
-    return secret || '';
-  };
-
   const fetchPendingLeaves = async () => {
     try {
-      const adminSecret = getAdminSecret();
-      console.log('[AdminDashboard] Fetching pending leaves...', { secret: adminSecret ? '***set***' : 'NOT SET' });
+      console.log('[AdminDashboard] Fetching pending leaves...', { adminSecret: ADMIN_SECRET ? '***set***' : 'NOT SET' });
       const res = await fetch(`${API}/api/leaves/admin/pending`, {
         method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          "x-admin-secret": adminSecret
-        },
+        headers: adminHeaders({ "x-admin-secret": ADMIN_SECRET }),
       });
 
       if (!res.ok) {
@@ -103,14 +87,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const fetchPendingAdvances = async () => {
     try {
-      const adminSecret = getAdminSecret();
-      console.log('[AdminDashboard] Fetching pending advances...', { secret: adminSecret ? '***set***' : 'NOT SET' });
+      console.log('[AdminDashboard] Fetching pending advances...', { adminSecret: ADMIN_SECRET ? '***set***' : 'NOT SET' });
       const res = await fetch(`${API}/api/advances/admin/pending`, {
         method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          "x-admin-secret": adminSecret
-        },
+        headers: adminHeaders({ "x-admin-secret": ADMIN_SECRET }),
       });
 
       if (!res.ok) {
@@ -135,14 +115,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const approveLeave = async (leaveId: string, status: 'accepted' | 'rejected') => {
     try {
-      const adminSecret = getAdminSecret();
-      console.log(`[AdminDashboard] ${status} leave ${leaveId}`, { secret: adminSecret ? '***set***' : 'NOT SET' });
+      console.log(`[AdminDashboard] ${status} leave ${leaveId}`, { adminSecret: ADMIN_SECRET ? '***set***' : 'NOT SET' });
       const res = await fetch(`${API}/api/leaves/admin/${leaveId}/status`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "x-admin-secret": adminSecret
-        },
+        headers: adminHeaders({ "x-admin-secret": ADMIN_SECRET }),
         body: JSON.stringify({ status })
       });
 
@@ -171,8 +147,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const approveAdvance = async (advanceId: string, status: 'approved' | 'rejected' | 'scheduled', paymentDate?: string) => {
     try {
-      const adminSecret = getAdminSecret();
-      console.log(`[AdminDashboard] ${status} advance ${advanceId}`, { secret: adminSecret ? '***set***' : 'NOT SET' });
+      console.log(`[AdminDashboard] ${status} advance ${advanceId}`, { adminSecret: ADMIN_SECRET ? '***set***' : 'NOT SET' });
       const body: any = { status };
       if (status === 'scheduled' && paymentDate) {
         body.paymentDate = paymentDate;
@@ -180,10 +155,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       const res = await fetch(`${API}/api/advances/admin/${advanceId}/status`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "x-admin-secret": adminSecret
-        },
+        headers: adminHeaders({ "x-admin-secret": ADMIN_SECRET }),
         body: JSON.stringify(body)
       });
 
@@ -230,15 +202,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const fetchPendingAttendance = async () => {
     try {
-      const adminSecret = getAdminSecret();
       console.log('[AdminDashboard] Fetching pending attendance from:', `${API}/api/admin/pending`);
-      console.log('[AdminDashboard] Admin Secret Present:', !!adminSecret);
+      console.log('[AdminDashboard] Admin Secret Present:', !!ADMIN_SECRET);
       const res = await fetch(`${API}/api/admin/pending`, {
         method: "GET",
-        headers: { 
-          "Content-Type": "application/json",
-          "x-admin-secret": adminSecret
-        },
+        headers: adminHeaders({ "x-admin-secret": ADMIN_SECRET }),
       });
 
       if (!res.ok) {
@@ -269,15 +237,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const approveShift = async (id: string) => {
     try {
       console.log(`[AdminApprove] Approving work ID: ${id}`);
-      const adminSecret = getAdminSecret();
-      console.log(`[AdminApprove] Admin Secret Present: ${!!adminSecret}`);
+      console.log(`[AdminApprove] Admin Secret Present: ${!!ADMIN_SECRET}`);
       
       const res = await fetch(`${API}/api/admin/approve/${id}`, {
         method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "x-admin-secret": adminSecret 
-        },
+        headers: adminHeaders({ "x-admin-secret": ADMIN_SECRET }),
       });
 
       if (!res.ok) {

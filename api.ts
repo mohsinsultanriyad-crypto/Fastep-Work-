@@ -3,6 +3,35 @@
 export const API_BASE_URL =
 	(import.meta as any)?.env?.VITE_API_BASE_URL || "https://fastep-work.onrender.com";
 
+// Admin secret from Vite environment variable
+// CRITICAL: Must be set via VITE_ADMIN_SECRET in Render Frontend environment
+export const ADMIN_SECRET = (import.meta as any)?.env?.VITE_ADMIN_SECRET || '';
+
+// One-time warning if ADMIN_SECRET not set
+if (!ADMIN_SECRET) {
+	console.warn(
+		'%c⚠️ VITE_ADMIN_SECRET not set!',
+		'color: #ff6b6b; font-weight: bold; font-size: 14px;'
+	);
+	console.warn(
+		'%cAdmin endpoints will return 401 Unauthorized. Set VITE_ADMIN_SECRET in Render Frontend environment and redeploy with "Clear build cache".',
+		'color: #ff6b6b; font-size: 12px;'
+	);
+} else {
+	console.log(
+		'%c✅ VITE_ADMIN_SECRET loaded successfully',
+		'color: #51cf66; font-weight: bold; font-size: 14px;'
+	);
+}
+
+// Helper function to add admin secret to headers
+export function adminHeaders(extra: Record<string, string> = {}) {
+	return {
+		...extra,
+		"x-admin-secret": ADMIN_SECRET
+	};
+}
+
 // Centralized API client
 export async function apiFetch(path: string, options: RequestInit = {}) {
 	const url = API_BASE_URL + path;
