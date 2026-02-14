@@ -59,11 +59,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const getAdminSecret = () => {
     // Get admin secret from env - MUST be set via VITE_ADMIN_SECRET
-    const secret = (import.meta as any)?.env?.VITE_ADMIN_SECRET || '';
+    const secret = (import.meta as any)?.env?.VITE_ADMIN_SECRET;
     if (!secret) {
-      console.warn('[AdminDashboard] ⚠️ VITE_ADMIN_SECRET not set! Admin endpoints will fail with 401');
+      console.warn('[AdminDashboard] ⚠️ VITE_ADMIN_SECRET is not set in environment variables.');
+      console.warn('[AdminDashboard] Admin endpoints will return 401 Unauthorized.');
+    } else {
+      console.log('[AdminDashboard] ✅ VITE_ADMIN_SECRET is present');
     }
-    return secret;
+    return secret || '';
   };
 
   const fetchPendingLeaves = async () => {
@@ -227,12 +230,24 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const fetchPendingAttendance = async () => {
     try {
+      const adminSecret = getAdminSecret();
+      console.log('[AdminDashboard] Fetching pending attendance from:', `${API}/api/admin/pending`);
+      console.log('[AdminDashboard] Admin Secret Present:', !!adminSecret);
       const res = await fetch(`${API}/api/admin/pending`, {
         method: "GET",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "x-admin-secret": adminSecret
+        },
       });
 
       if (!res.ok) {
+        const errorText = await res.text();
+        console.error('[AdminDashboard] Failed to fetch pending attendance:', {
+          status: res.status,
+          statusText: res.statusText,
+          body: errorText
+        });
         setBackendOk(false);
         return;
       }
@@ -254,15 +269,22 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const approveShift = async (id: string) => {
     try {
       console.log(`[AdminApprove] Approving work ID: ${id}`);
+      const adminSecret = getAdminSecret();
+      console.log(`[AdminApprove] Admin Secret Present: ${!!adminSecret}`);
       
       const res = await fetch(`${API}/api/admin/approve/${id}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "x-admin-secret": adminSecret 
+        },
       });
 
       if (!res.ok) {
-        console.error(`[AdminApprove] Failed with status ${res.status}`);
-        alert("Approve failed ❌ (backend error)");
+        const errBody = await res.json().catch(() => ({}));
+        console.error(`[AdminApprove] Failed with status ${res.status}, statusText: ${res.statusText}`);
+        console.error(`[AdminApprove] Error response:`, errBody);
+        alert(`Approve failed ❌ (${res.status} ${res.statusText})`);
         return;
       }
 
