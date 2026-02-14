@@ -143,10 +143,8 @@ router.delete("/delete-user/:id", async(req,res)=>{
 
         const userId = req.params.id;
 
-        // Validate ObjectId format
-        if (!mongoose.Types.ObjectId.isValid(userId)) {
-            console.warn(`[Admin/DeleteUser] Invalid ObjectId: ${userId}`);
-            return res.status(400).json({ message: "Invalid user ID format" });
+        if (!userId) {
+            return res.status(400).json({ message: "User ID is required" });
         }
 
         console.log(`[Admin/DeleteUser] Deleting user: ${userId}`);
