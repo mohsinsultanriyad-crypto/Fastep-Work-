@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { User } from '../types';
 import { MOCK_ADMIN, APP_NAME } from '../constants';
-import { API_BASE_URL } from '../api';
 
 interface LoginProps {
   onLogin: (user: User) => void;
@@ -14,13 +13,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, workers }) => {
   const [password, setPassword] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setIsLoading(true);
-
     if (isAdmin) {
       // Check admin credentials from constants (User requested FSA101 / password123)
       if (userId === MOCK_ADMIN.email && password === (MOCK_ADMIN.password || 'password123')) {
@@ -28,49 +23,13 @@ const Login: React.FC<LoginProps> = ({ onLogin, workers }) => {
       } else {
         setError('Invalid Admin credentials');
       }
-      setIsLoading(false);
     } else {
-      // Worker login - call backend API
-      try {
-        console.log("[Login] Authenticating worker:", userId);
-        console.log("[Login] Backend URL:", API_BASE_URL);
-        console.log("[Login] Sending workerId:", userId.trim().toUpperCase());
-        
-        const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ workerId: userId, password })
-        });
-
-        console.log("[Login] Response status:", res.status);
-        
-        const data = await res.json();
-        console.log("[Login] Response data:", data);
-
-        if (!res.ok) {
-          console.warn("[Login] Login failed:", data);
-          setError(data.message || 'Invalid credentials');
-          setIsLoading(false);
-          return;
-        }
-
-        console.log("[Login] ✅ Successfully authenticated");
-        // Store compact auth info in localStorage (single-source-of-truth)
-        const authObj = {
-          token: data.token,
-          user: data.user,
-          userId: data.user?._id || data.user?.id,
-          workerId: data.user?.workerId || null,
-          role: data.user?.role || null,
-          timestamp: Date.now()
-        };
-        localStorage.setItem('fastep_auth', JSON.stringify(authObj));
-
-        onLogin(data.user);
-      } catch (err) {
-        console.error("[Login] Error:", err);
-        setError('Login failed. Please try again.');
-        setIsLoading(false);
+      // Check worker credentials from state (including newly created ones)
+      const worker = workers.find(w => w.workerId === userId);
+      if (worker && password === (worker.password || 'password123')) {
+        onLogin(worker);
+      } else {
+        setError('Invalid Worker ID or Password');
       }
     }
   };
@@ -127,10 +86,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, workers }) => {
 
             <button 
               type="submit"
-              disabled={isLoading}
-              className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl hover:bg-blue-700 active:scale-95 transition-all mt-4 shadow-lg shadow-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl hover:bg-blue-700 active:scale-95 transition-all mt-4 shadow-lg shadow-blue-100"
             >
-              {isLoading ? 'Logging in...' : 'Log In'}
+              Log In
             </button>
           </form>
         </div>

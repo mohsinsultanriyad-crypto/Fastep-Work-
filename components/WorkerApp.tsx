@@ -6,8 +6,6 @@ import WorkerHistory from './WorkerHistory';
 import SiteFeed from './SiteFeed';
 import Profile from './Profile';
 import { LayoutDashboard, History, Rss, User as UserIcon } from 'lucide-react';
-import { useEffect } from 'react';
-import { API_BASE_URL } from '../api';
 
 interface WorkerAppProps {
   user: User;
@@ -27,96 +25,10 @@ const WorkerApp: React.FC<WorkerAppProps> = ({
   user, shifts, setShifts, leaves, setLeaves, posts, setPosts, 
   advanceRequests, setAdvanceRequests, announcements, onLogout 
 }) => {
-  // Load worker-specific data from backend on mount (single source of truth)
-  useEffect(() => {
-    // Use auth from localStorage (stored as { userId, ... }) to fetch canonical history
-    const raw = typeof window !== 'undefined' ? localStorage.getItem('fastep_auth') : null;
-    let auth: any = null;
-    try { auth = raw ? JSON.parse(raw) : null; } catch (e) { auth = null; }
-    const userId = auth?.userId || (user as any)._id || (user as any).id;
-    if (!userId) return;
-
-    (async () => {
-      try {
-        // ===== LOAD SHIFTS =====
-        const shiftsRes = await fetch(`${API_BASE_URL}/api/work/list-by-user/${userId}`, {
-          headers: { 'Content-Type': 'application/json' }
-        });
-        if (shiftsRes.ok) {
-          const data = await shiftsRes.json();
-          // Ensure each shift has a `date` field; derive from startTime if missing
-          const normalized = (Array.isArray(data) ? data : []).map((s: any) => ({
-            _id: s._id || s.id,
-            id: s._id || s.id,
-            workerId: s.workerId,
-            date: s.date || (s.startTime ? new Date(Number(s.startTime)).toISOString().slice(0,10) : ''),
-            startTime: s.startTime,
-            endTime: s.endTime,
-            breakMinutes: s.breakMinutes || 0,
-            notes: s.notes || '',
-            status: s.status || 'pending',
-            isApproved: !!s.isApproved,
-            totalHours: s.totalHours || 0
-          }));
-          setShifts(normalized as any);
-        } else {
-          setShifts([]);
-        }
-
-        // ===== LOAD LEAVES =====
-        const leavesRes = await fetch(`${API_BASE_URL}/api/leaves/list-by-user/${userId}`, {
-          headers: { 'Content-Type': 'application/json' }
-        });
-        if (leavesRes.ok) {
-          const leavesData = await leavesRes.json();
-          const normalizedLeaves = (Array.isArray(leavesData) ? leavesData : []).map((l: any) => ({
-            id: l._id || l.id,
-            workerId: l.workerId,
-            date: l.date,
-            reason: l.reason || '',
-            status: l.status as 'pending' | 'accepted' | 'rejected'
-          }));
-          console.log('[WorkerApp] Loaded leaves:', normalizedLeaves);
-          setLeaves(normalizedLeaves);
-        } else {
-          setLeaves([]);
-        }
-
-        // ===== LOAD ADVANCES =====
-        const advancesRes = await fetch(`${API_BASE_URL}/api/advances/list-by-user/${userId}`, {
-          headers: { 'Content-Type': 'application/json' }
-        });
-        if (advancesRes.ok) {
-          const advancesData = await advancesRes.json();
-          const normalizedAdvances = (Array.isArray(advancesData) ? advancesData : []).map((a: any) => ({
-            id: a._id || a.id,
-            workerId: a.workerId,
-            workerName: user.name,
-            amount: a.amount,
-            reason: a.reason || '',
-            requestDate: a.requestDate,
-            status: a.status as 'pending' | 'approved' | 'rejected' | 'scheduled',
-            paymentDate: a.paymentDate
-          }));
-          console.log('[WorkerApp] Loaded advances:', normalizedAdvances);
-          setAdvanceRequests(normalizedAdvances);
-        } else {
-          setAdvanceRequests([]);
-        }
-      } catch (e) {
-        console.warn('[WorkerApp] Failed to load worker data:', e);
-        setShifts([]);
-        setLeaves([]);
-        setAdvanceRequests([]);
-      }
-    })();
-  }, [user, setShifts, setLeaves, setAdvanceRequests]);
-
   const [activeTab, setActiveTab] = useState<'dashboard' | 'history' | 'feed' | 'profile'>('dashboard');
 
   const workerShifts = useMemo(() => shifts.filter(s => s.workerId === user.id), [shifts, user.id]);
   const workerLeaves = useMemo(() => leaves.filter(l => l.workerId === user.id), [leaves, user.id]);
-  // Filter advances for the current worker
   const workerAdvances = useMemo(() => advanceRequests.filter(r => r.workerId === user.id), [advanceRequests, user.id]);
 
   return (
@@ -128,6 +40,7 @@ const WorkerApp: React.FC<WorkerAppProps> = ({
             shifts={shifts} 
             setShifts={setShifts} 
             leaves={leaves}
+            advanceRequests={workerAdvances}
             announcements={announcements}
           />
         )}

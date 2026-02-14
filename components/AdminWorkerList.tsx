@@ -1,9 +1,8 @@
 
 import React, { useState, useMemo } from 'react';
 import { User, Shift, Leave, AdvanceRequest } from '../types';
-import { Search, Download, FileText, Edit2, X, CheckCircle, Loader2, History, UserPlus, Lock, ShieldCheck, ShieldAlert, Zap, AlertTriangle, Trash2 } from 'lucide-react';
+import { Search, Download, FileText, Edit2, X, CheckCircle, Loader2, History, UserPlus, Lock, ShieldCheck, ShieldAlert, Zap, AlertTriangle, Trash2, AlertCircle } from 'lucide-react';
 import { DAYS_IN_MONTH, BASE_HOURS } from '../constants';
-import { API_BASE_URL, ADMIN_SECRET, adminHeaders } from '../api';
 import WorkerHistory from './WorkerHistory';
 
 interface AdminWorkerListProps {
@@ -18,6 +17,7 @@ const AdminWorkerList: React.FC<AdminWorkerListProps> = ({ workers, setWorkers, 
   const [editingWorker, setEditingWorker] = useState<User | null>(null);
   const [salaryModalWorker, setSalaryModalWorker] = useState<{worker: User, payroll: any} | null>(null);
   const [historyWorker, setHistoryWorker] = useState<User | null>(null);
+  const [workerToDelete, setWorkerToDelete] = useState<User | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [isGenerating, setIsGenerating] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -95,107 +95,32 @@ const AdminWorkerList: React.FC<AdminWorkerListProps> = ({ workers, setWorkers, 
     setEditingWorker(null);
   };
 
-  const handleCreateWorker = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      console.log("[AdminWorkerList] Creating worker:", newWorker.workerId);
-      console.log("[AdminWorkerList] Admin secret status:", ADMIN_SECRET ? '***set***' : 'NOT SET');
-      console.log("[AdminWorkerList] API_BASE_URL:", API_BASE_URL);
-      
-      const payload = {
-        name: newWorker.name,
-        workerId: newWorker.workerId,
-        phone: newWorker.phone,
-        password: newWorker.password,
-        role: "worker"
-      };
-      console.log("[AdminWorkerList] Payload:", payload);
-      
-      const res = await fetch(`${API_BASE_URL}/api/admin/create-worker`, {
-        method: "POST",
-        headers: adminHeaders({ "x-admin-secret": ADMIN_SECRET }),
-        body: JSON.stringify(payload)
-      });
-
-      console.log("[AdminWorkerList] Response status:", res.status, res.statusText);
-      
-      const data = await res.json();
-      console.log("[AdminWorkerList] Response data:", data);
-
-      if (!res.ok) {
-        console.error("[AdminWorkerList] Create failed (not ok):", data);
-        alert(`Failed to create worker: ${data.message || "Unknown error"}`);
-        return;
-      }
-
-      console.log("[AdminWorkerList] Create succeeded, response:", data);
-
-      // Add to local state with the new user data
-      const newUser: User = {
-        id: data.user._id,
-        name: newWorker.name,
-        workerId: newWorker.workerId,
-        trade: newWorker.trade,
-        monthlySalary: Number(newWorker.monthlySalary),
-        phone: newWorker.phone,
-        password: newWorker.password,
-        role: 'worker',
-        photoUrl: `https://picsum.photos/seed/${newWorker.workerId}/200`,
-        isActive: true,
-        iqamaExpiry: newWorker.iqamaExpiry,
-        passportExpiry: newWorker.passportExpiry
-      };
-      
-      setWorkers(prev => [...prev, newUser]);
-      setShowAddModal(false);
-      setNewWorker({ name: '', workerId: '', trade: '', monthlySalary: '', phone: '', password: 'password123', iqamaExpiry: '', passportExpiry: '' });
-      
-      console.log(`[AdminWorkerList] ✅ Worker created successfully: ${newWorker.workerId}`);
-      alert(`✅ Worker ${newWorker.workerId} created successfully`);
-    } catch (err) {
-      console.error("[AdminWorkerList] Create error:", err);
-      alert("Error creating worker. Please try again.");
+  const handleDeleteWorker = () => {
+    if (workerToDelete) {
+      setWorkers(prev => prev.filter(w => w.id !== workerToDelete.id));
+      setWorkerToDelete(null);
     }
   };
 
-  const handleDeleteWorker = async (worker: User) => {
-    if (!window.confirm(`Are you sure you want to delete ${worker.name}? This action cannot be undone.`)) {
-      return;
-    }
-
-    try {
-      console.log("[AdminWorkerList] Deleting worker:", worker.name, { secret: ADMIN_SECRET ? '***set***' : 'NOT SET' });
-      
-      const res = await fetch(`${API_BASE_URL}/api/admin/delete-user/${worker.id}`, {
-        method: "DELETE",
-        headers: adminHeaders({ "x-admin-secret": ADMIN_SECRET })
-      });
-
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error("[AdminWorkerList] Delete failed:", { 
-          status: res.status, 
-          statusText: res.statusText,
-          body: errorText
-        });
-        let err;
-        try {
-          err = JSON.parse(errorText);
-        } catch {
-          err = { message: errorText };
-        }
-        alert(`Failed to delete: ${err.message || "Unknown error"}`);
-        return;
-      }
-
-      console.log(`[AdminWorkerList] Worker deleted: ${worker.name}`);
-      setWorkers(prev => prev.filter(w => w.id !== worker.id));
-      alert(`✅ ${worker.name} has been deleted successfully`);
-    } catch (err) {
-      console.error("[AdminWorkerList] Delete error:", err);
-      alert("Error deleting worker. Please try again.");
-    }
+  const handleCreateWorker = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newUser: User = {
+      id: Math.random().toString(36).substr(2, 9),
+      name: newWorker.name,
+      workerId: newWorker.workerId,
+      trade: newWorker.trade,
+      monthlySalary: Number(newWorker.monthlySalary),
+      phone: newWorker.phone,
+      password: newWorker.password,
+      role: 'worker',
+      photoUrl: `https://picsum.photos/seed/${newWorker.workerId}/200`,
+      isActive: true,
+      iqamaExpiry: newWorker.iqamaExpiry,
+      passportExpiry: newWorker.passportExpiry
+    };
+    setWorkers(prev => [...prev, newUser]);
+    setShowAddModal(false);
+    setNewWorker({ name: '', workerId: '', trade: '', monthlySalary: '', phone: '', password: 'password123', iqamaExpiry: '', passportExpiry: '' });
   };
 
   return (
@@ -243,7 +168,7 @@ const AdminWorkerList: React.FC<AdminWorkerListProps> = ({ workers, setWorkers, 
                   <button onClick={() => setHistoryWorker(worker)} className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:text-blue-600 transition-colors">
                     <History size={18} />
                   </button>
-                  <button onClick={() => handleDeleteWorker(worker)} className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:text-red-600 transition-colors">
+                  <button onClick={() => setWorkerToDelete(worker)} className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:text-red-600 transition-colors">
                     <Trash2 size={18} />
                   </button>
                 </div>
@@ -322,6 +247,39 @@ const AdminWorkerList: React.FC<AdminWorkerListProps> = ({ workers, setWorkers, 
             <button onClick={() => setSalaryModalWorker(null)} className="w-full bg-gray-100 text-gray-900 font-bold py-5 rounded-2xl active:scale-95 transition-all">
               Done
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {workerToDelete && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-6 bg-black/70 backdrop-blur-md">
+          <div className="w-full max-w-sm bg-white rounded-[2.5rem] p-8 space-y-6 shadow-2xl animate-in zoom-in duration-200 text-center">
+            <div className="flex flex-col items-center gap-4">
+              <div className="p-4 bg-red-50 text-red-600 rounded-full">
+                <AlertCircle size={40} />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-gray-900">Delete Profile?</h3>
+                <p className="text-xs text-gray-500 mt-2">
+                  Are you sure you want to remove <span className="font-bold text-gray-900">{workerToDelete.name}</span>? This action cannot be undone.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col gap-3">
+              <button 
+                onClick={handleDeleteWorker}
+                className="w-full bg-red-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-red-100 active:scale-95 transition-all"
+              >
+                Delete Permanently
+              </button>
+              <button 
+                onClick={() => setWorkerToDelete(null)}
+                className="w-full bg-gray-100 text-gray-500 font-bold py-4 rounded-2xl active:scale-95 transition-all"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}
