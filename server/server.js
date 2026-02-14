@@ -26,7 +26,7 @@ const corsOptions = {
     return cb(new Error("Not allowed by CORS: " + origin));
   },
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: ["Content-Type", "Authorization", "x-admin-secret"],
   optionsSuccessStatus: 200,
   credentials: true,
 };
@@ -48,7 +48,7 @@ app.use((req, res, next) => {
   if (allowed) {
     res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization,x-admin-secret");
     res.setHeader("Access-Control-Allow-Credentials", "true");
   }
 
