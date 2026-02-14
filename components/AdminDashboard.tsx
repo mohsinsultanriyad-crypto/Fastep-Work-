@@ -14,33 +14,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
-/**
- * ✅ API BASE FIX (Codespaces + Local)
- * - Local: http://localhost:5000/api
- * - Codespaces: https://xxxxx-5000.app.github.dev/api  (auto)
- */
-const API = (() => {
-  try {
-    const host = window.location.hostname; // e.g. turbo-fishstick-...-3000.app.github.dev
-    const protocol = window.location.protocol;
-
-    // Codespaces: replace "-3000." with "-5000."
-    if (host.includes("-3000.")) {
-      const backendHost = host.replace("-3000.", "-5000.");
-      return `${protocol}//${backendHost}/api`;
-    }
-
-    // Local dev
-    if (host === "localhost" || host === "127.0.0.1") {
-      return "http://localhost:5000/api";
-    }
-
-    // Fallback
-    return `${protocol}//${host}/api`;
-  } catch {
-    return "http://localhost:5000/api";
-  }
-})();
+import { API_BASE_URL as API } from "../api";
 
 interface AdminDashboardProps {
   shifts: Shift[];
@@ -83,7 +57,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const fetchPendingAttendance = async () => {
     try {
-      const res = await fetch(`${API}/admin/pending`, {
+      const res = await fetch(`${API}/api/admin/pending`, {
         method: "GET",
         headers: { "Content-Type": "application/json" },
       });
@@ -117,7 +91,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     try {
       console.log(`[AdminApprove] Approving work ID: ${id}`);
       
-      const res = await fetch(`${API}/admin/approve/${id}`, {
+      const res = await fetch(`${API}/api/admin/approve/${id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });

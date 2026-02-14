@@ -20,23 +20,7 @@ interface WorkerDashboardProps {
   announcements: Announcement[];
 }
 
-function getApiBase() {
-  // 1) If you set VITE_API_BASE in .env, it will use that.
-  // Example: VITE_API_BASE=https://xxxx-5000.app.github.dev/api
-  const envBase = (import.meta as any)?.env?.VITE_API_BASE as string | undefined;
-  if (envBase && typeof envBase === "string") return envBase.replace(/\/$/, "");
-
-  // 2) Auto-detect Codespaces (3000 -> 5000)
-  const host = window.location.hostname;
-  const proto = window.location.protocol;
-
-  if (host.includes("-3000.")) {
-    return `${proto}//${host.replace("-3000.", "-5000.")}/api`;
-  }
-
-  // 3) Local fallback
-  return "https://turbo-fishstick-97rvgg9vpxjxh777g-5000.app.github.dev/api";
-}
+import { API_BASE_URL } from "../api";
 
 function safeId(user: any) {
   // Prefer Mongo _id if present
@@ -53,7 +37,7 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
   setShifts,
   announcements,
 }) => {
-  const API = getApiBase();
+  const API = API_BASE_URL;
   const todayStr = new Date().toISOString().split("T")[0];
 
   const workerDbId = safeId(user);
@@ -122,7 +106,7 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
     setRefreshing(true);
     try {
       console.log(`[Refresh] Checking status for ${workerDbId} on ${todayStr}`);
-      const url = `${API}/work/status/${workerDbId}/${todayStr}`;
+      const url = `${API}/api/work/status/${workerDbId}/${todayStr}`;
       console.log(`[Refresh] URL: ${url}`);
       
       const res = await fetch(url, {
@@ -270,7 +254,7 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
       console.log(`[Submit] Payload:`, payload);
 
       // ✅ send to backend
-      const res = await fetch(`${API}/work/submit`, {
+      const res = await fetch(`${API}/api/work/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
