@@ -2,6 +2,7 @@ const router = require("express").Router();
 const Work = require("../models/Work");
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
+const mongoose = require("mongoose");
 
 // DEBUG: GET ALL WORK
 router.get("/debug/all-work", async(req,res)=>{
@@ -126,6 +127,49 @@ router.patch("/reset-password", async(req,res)=>{
     } catch (e) {
         console.error("[Admin/ResetPwd] Error:", e);
         res.status(500).json({ message: "Password reset failed", error: e.message });
+    }
+});
+
+// DELETE USER (admin-only, protected by x-admin-secret header)
+router.delete("/delete-user/:id", async(req,res)=>{
+    try {
+        const adminSecret = req.headers["x-admin-secret"];
+        const expectedSecret = process.env.ADMIN_SECRET;
+
+        if (!adminSecret || adminSecret !== expectedSecret) {
+            console.warn("[Admin/DeleteUser] Unauthorized attempt (invalid or missing secret)");
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+
+        const userId = req.params.id;
+
+        // Validate ObjectId format
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            console.warn(`[Admin/DeleteUser] Invalid ObjectId: ${userId}`);
+            return res.status(400).json({ message: "Invalid user ID format" });
+        }
+
+        console.log(`[Admin/DeleteUser] Deleting user: ${userId}`);
+
+        // Find user before deleting (for logging)
+        const user = await User.findById(userId);
+        if (!user) {
+            console.warn(`[Admin/DeleteUser] User not found: ${userId}`);
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // Delete user
+        await User.findByIdAndDelete(userId);
+
+        console.log(`[Admin/DeleteUser] Successfully deleted user: ${user.name} (${userId})`);
+        res.json({ 
+            message: "User deleted successfully",
+            deletedUserId: userId,
+            deletedUserName: user.name
+        });
+    } catch (e) {
+        console.error("[Admin/DeleteUser] Error:", e);
+        res.status(500).json({ message: "Delete user failed", error: e.message });
     }
 });
 

@@ -1,8 +1,9 @@
 
 import React, { useState, useMemo } from 'react';
 import { User, Shift, Leave, AdvanceRequest } from '../types';
-import { Search, Download, FileText, Edit2, X, CheckCircle, Loader2, History, UserPlus, Lock, ShieldCheck, ShieldAlert, Zap, AlertTriangle } from 'lucide-react';
+import { Search, Download, FileText, Edit2, X, CheckCircle, Loader2, History, UserPlus, Lock, ShieldCheck, ShieldAlert, Zap, AlertTriangle, Trash2 } from 'lucide-react';
 import { DAYS_IN_MONTH, BASE_HOURS } from '../constants';
+import { API_BASE_URL } from '../api';
 import WorkerHistory from './WorkerHistory';
 
 interface AdminWorkerListProps {
@@ -115,6 +116,37 @@ const AdminWorkerList: React.FC<AdminWorkerListProps> = ({ workers, setWorkers, 
     setNewWorker({ name: '', workerId: '', trade: '', monthlySalary: '', phone: '', password: 'password123', iqamaExpiry: '', passportExpiry: '' });
   };
 
+  const handleDeleteWorker = async (worker: User) => {
+    if (!window.confirm(`Are you sure you want to delete ${worker.name}? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const adminSecret = (import.meta as any)?.env?.VITE_ADMIN_SECRET || "xyz_super_secret_admin_key_2026_9k7d4j3hL9m2w5p8q";
+      
+      const res = await fetch(`${API_BASE_URL}/api/admin/delete-user/${worker.id}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-secret": adminSecret
+        }
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        alert(`Failed to delete: ${err.message || "Unknown error"}`);
+        return;
+      }
+
+      console.log(`[AdminWorkerList] Worker deleted: ${worker.name}`);
+      setWorkers(prev => prev.filter(w => w.id !== worker.id));
+      alert(`✅ ${worker.name} has been deleted successfully`);
+    } catch (err) {
+      console.error("[AdminWorkerList] Delete error:", err);
+      alert("Error deleting worker. Please try again.");
+    }
+  };
+
   return (
     <div className="px-6 pt-10 pb-6 space-y-8 bg-gray-50/50 min-h-screen">
       <header className="flex items-center justify-between">
@@ -159,6 +191,9 @@ const AdminWorkerList: React.FC<AdminWorkerListProps> = ({ workers, setWorkers, 
                   </button>
                   <button onClick={() => setHistoryWorker(worker)} className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:text-blue-600 transition-colors">
                     <History size={18} />
+                  </button>
+                  <button onClick={() => handleDeleteWorker(worker)} className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:text-red-600 transition-colors">
+                    <Trash2 size={18} />
                   </button>
                 </div>
               </div>
