@@ -8,48 +8,47 @@ const app = express();
 // ✅ CORS OPTIONS (Express v5 safe)
 const isDev = process.env.NODE_ENV !== "production";
 
-// During development allow all origins (useful for Codespaces / GH dev ports)
+// Allowed origins for production (frontend + common dev host)
+const allowedOrigins = [
+  "https://fastep-work-1.onrender.com",
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+];
+
 const corsOptions = {
   origin: (origin, cb) => {
-    if (!origin) return cb(null, true); // server-to-server or Postman
+    // Allow server-to-server or tools with no origin
+    if (!origin) return cb(null, true);
     if (isDev) return cb(null, true);
     if (origin.endsWith(".app.github.dev")) return cb(null, true);
-    if (origin === "http://localhost:3000") return cb(null, true);
-    if (origin === "http://127.0.0.1:3000") return cb(null, true);
+    if (allowedOrigins.includes(origin)) return cb(null, true);
     return cb(new Error("Not allowed by CORS: " + origin));
   },
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   optionsSuccessStatus: 200,
-  credentials: false,
+  credentials: true,
 };
 
+// Apply CORS before routes
 app.use(cors(corsOptions));
 
-// Ensure preflight responses include CORS headers
-app.options(/.*/, cors(corsOptions));
+// Allow all preflight requests to be handled by CORS middleware
+app.options("*", cors());
 
-// Explicit CORS headers middleware (defensive - ensures headers even on errors)
+// Defensive headers (ensure presence even when errors occur)
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   if (!origin) return next();
 
-  const allowed =
-    isDev ||
-    origin.endsWith(".app.github.dev") ||
-    origin === "http://localhost:3000" ||
-    origin === "http://127.0.0.1:3000";
+  const allowed = isDev || origin.endsWith(".app.github.dev") || allowedOrigins.includes(origin);
 
   if (allowed) {
     res.setHeader("Access-Control-Allow-Origin", origin);
-    res.setHeader(
-      "Access-Control-Allow-Methods",
-      "GET,POST,PUT,DELETE,OPTIONS"
-    );
-    res.setHeader(
-      "Access-Control-Allow-Headers",
-      "Content-Type,Authorization"
-    );
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
   }
 
   if (req.method === "OPTIONS") {
