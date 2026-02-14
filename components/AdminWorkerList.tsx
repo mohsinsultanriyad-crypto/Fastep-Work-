@@ -95,25 +95,63 @@ const AdminWorkerList: React.FC<AdminWorkerListProps> = ({ workers, setWorkers, 
     setEditingWorker(null);
   };
 
-  const handleCreateWorker = (e: React.FormEvent) => {
+  const handleCreateWorker = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newUser: User = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: newWorker.name,
-      workerId: newWorker.workerId,
-      trade: newWorker.trade,
-      monthlySalary: Number(newWorker.monthlySalary),
-      phone: newWorker.phone,
-      password: newWorker.password,
-      role: 'worker',
-      photoUrl: `https://picsum.photos/seed/${newWorker.workerId}/200`,
-      isActive: true,
-      iqamaExpiry: newWorker.iqamaExpiry,
-      passportExpiry: newWorker.passportExpiry
-    };
-    setWorkers(prev => [...prev, newUser]);
-    setShowAddModal(false);
-    setNewWorker({ name: '', workerId: '', trade: '', monthlySalary: '', phone: '', password: 'password123', iqamaExpiry: '', passportExpiry: '' });
+    
+    try {
+      const adminSecret = (import.meta as any)?.env?.VITE_ADMIN_SECRET || "xyz_super_secret_admin_key_2026_9k7d4j3hL9m2w5p8q";
+      
+      console.log("[AdminWorkerList] Creating worker:", newWorker.workerId);
+      
+      const res = await fetch(`${API_BASE_URL}/api/admin/create-worker`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-secret": adminSecret
+        },
+        body: JSON.stringify({
+          name: newWorker.name,
+          workerId: newWorker.workerId,
+          phone: newWorker.phone,
+          password: newWorker.password,
+          role: "worker"
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        console.error("[AdminWorkerList] Create failed:", data);
+        alert(`Failed to create worker: ${data.message || "Unknown error"}`);
+        return;
+      }
+
+      // Add to local state with the new user data
+      const newUser: User = {
+        id: data.user._id,
+        name: newWorker.name,
+        workerId: newWorker.workerId,
+        trade: newWorker.trade,
+        monthlySalary: Number(newWorker.monthlySalary),
+        phone: newWorker.phone,
+        password: newWorker.password,
+        role: 'worker',
+        photoUrl: `https://picsum.photos/seed/${newWorker.workerId}/200`,
+        isActive: true,
+        iqamaExpiry: newWorker.iqamaExpiry,
+        passportExpiry: newWorker.passportExpiry
+      };
+      
+      setWorkers(prev => [...prev, newUser]);
+      setShowAddModal(false);
+      setNewWorker({ name: '', workerId: '', trade: '', monthlySalary: '', phone: '', password: 'password123', iqamaExpiry: '', passportExpiry: '' });
+      
+      console.log(`[AdminWorkerList] Worker created successfully: ${newWorker.workerId}`);
+      alert(`✅ Worker ${newWorker.workerId} created successfully`);
+    } catch (err) {
+      console.error("[AdminWorkerList] Create error:", err);
+      alert("Error creating worker. Please try again.");
+    }
   };
 
   const handleDeleteWorker = async (worker: User) => {

@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { User } from '../types';
 import { MOCK_ADMIN, APP_NAME } from '../constants';
+import { API_BASE_URL } from '../api';
 
 interface LoginProps {
   onLogin: (user: User) => void;
@@ -13,9 +14,13 @@ const Login: React.FC<LoginProps> = ({ onLogin, workers }) => {
   const [password, setPassword] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+    setIsLoading(true);
+
     if (isAdmin) {
       // Check admin credentials from constants (User requested FSA101 / password123)
       if (userId === MOCK_ADMIN.email && password === (MOCK_ADMIN.password || 'password123')) {
@@ -23,13 +28,40 @@ const Login: React.FC<LoginProps> = ({ onLogin, workers }) => {
       } else {
         setError('Invalid Admin credentials');
       }
+      setIsLoading(false);
     } else {
-      // Check worker credentials from state (including newly created ones)
-      const worker = workers.find(w => w.workerId === userId);
-      if (worker && password === (worker.password || 'password123')) {
-        onLogin(worker);
-      } else {
-        setError('Invalid Worker ID or Password');
+      // Worker login - call backend API
+      try {
+        console.log("[Login] Authenticating worker:", userId);
+        
+        const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ workerId: userId, password })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          console.warn("[Login] Login failed:", data);
+          setError(data.message || 'Invalid credentials');
+          setIsLoading(false);
+          return;
+        }
+
+        console.log("[Login] Success for workerId:", userId);
+        // Store token in localStorage
+        localStorage.setItem('fastep_auth', JSON.stringify({
+          token: data.token,
+          user: data.user,
+          timestamp: Date.now()
+        }));
+
+        onLogin(data.user);
+      } catch (err) {
+        console.error("[Login] Error:", err);
+        setError('Login failed. Please try again.');
+        setIsLoading(false);
       }
     }
   };
@@ -86,9 +118,10 @@ const Login: React.FC<LoginProps> = ({ onLogin, workers }) => {
 
             <button 
               type="submit"
-              className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl hover:bg-blue-700 active:scale-95 transition-all mt-4 shadow-lg shadow-blue-100"
+              disabled={isLoading}
+              className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl hover:bg-blue-700 active:scale-95 transition-all mt-4 shadow-lg shadow-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Log In
+              {isLoading ? 'Logging in...' : 'Log In'}
             </button>
           </form>
         </div>

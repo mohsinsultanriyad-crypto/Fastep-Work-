@@ -187,4 +187,71 @@ router.delete("/delete-user/:id", async(req,res)=>{
     }
 });
 
+// CREATE WORKER (admin-only, protected by x-admin-secret header)
+router.post("/create-worker", async(req,res)=>{
+    try {
+        const adminSecret = req.headers["x-admin-secret"];
+        const expectedSecret = process.env.ADMIN_SECRET;
+
+        if (!adminSecret || adminSecret !== expectedSecret) {
+            console.warn("[Admin/CreateWorker] Unauthorized attempt (invalid or missing secret)");
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+
+        const { name, workerId, phone, password, role = "worker" } = req.body;
+
+        // Validate required fields
+        if (!name || !workerId || !password) {
+            return res.status(400).json({ message: "name, workerId, and password are required" });
+        }
+
+        // Normalize workerId: trim and uppercase
+        const normalizedWorkerId = workerId.trim().toUpperCase();
+        
+        console.log(`[Admin/CreateWorker] Creating worker with workerId: ${normalizedWorkerId}`);
+
+        // Check if worker already exists
+        const existingUser = await User.findOne({ workerId: normalizedWorkerId });
+        if (existingUser) {
+            console.warn(`[Admin/CreateWorker] Worker already exists: ${normalizedWorkerId}`);
+            return res.status(400).json({ message: "Worker with this workerId already exists" });
+        }
+
+        // Hash password with bcrypt
+        const hashedPassword = await bcrypt.hash(password, 10);
+        console.log(`[Admin/CreateWorker] Password hashed (starts with $2): ${hashedPassword.startsWith("$2")}`);
+
+        // Create user
+        const user = await User.create({
+            name: name.trim(),
+            workerId: normalizedWorkerId,
+            phone: phone ? phone.trim() : null,
+            password: hashedPassword,
+            role: role
+        });
+
+        console.log(`[Admin/CreateWorker] Successfully created worker: ${user.name} (${normalizedWorkerId})`);
+        
+        res.json({ 
+            message: "Worker created successfully",
+            user: {
+                _id: user._id,
+                name: user.name,
+                workerId: user.workerId,
+                phone: user.phone,
+                role: user.role
+            }
+        });
+    } catch (e) {
+        console.error("[Admin/CreateWorker] Error:", e);
+        if (e.code === 11000) {
+            // Duplicate key error
+            const field = Object.keys(e.keyPattern)[0];
+            res.status(400).json({ message: `${field} already exists` });
+        } else {
+            res.status(500).json({ message: "Create worker failed", error: e.message });
+        }
+    }
+});
+
 module.exports = router;
