@@ -58,14 +58,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [backendOk, setBackendOk] = useState(true);
 
   const getAdminSecret = () => {
-    // Get admin secret from env or localStorage
-    return (import.meta as any)?.env?.VITE_ADMIN_SECRET || localStorage.getItem('admin_secret') || '';
+    // Get admin secret from env - MUST be set via VITE_ADMIN_SECRET
+    const secret = (import.meta as any)?.env?.VITE_ADMIN_SECRET || '';
+    if (!secret) {
+      console.warn('[AdminDashboard] ⚠️ VITE_ADMIN_SECRET not set! Admin endpoints will fail with 401');
+    }
+    return secret;
   };
 
   const fetchPendingLeaves = async () => {
     try {
       const adminSecret = getAdminSecret();
-      console.log('[AdminDashboard] Fetching pending leaves...');
+      console.log('[AdminDashboard] Fetching pending leaves...', { secret: adminSecret ? '***set***' : 'NOT SET' });
       const res = await fetch(`${API}/api/leaves/admin/pending`, {
         method: "GET",
         headers: {
@@ -75,7 +79,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       });
 
       if (!res.ok) {
-        console.warn('[AdminDashboard] Failed to fetch pending leaves:', res.status);
+        const errorText = await res.text();
+        console.error('[AdminDashboard] Failed to fetch pending leaves:', { 
+          status: res.status, 
+          statusText: res.statusText,
+          body: errorText,
+          url: res.url
+        });
         return;
       }
 
@@ -91,7 +101,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const fetchPendingAdvances = async () => {
     try {
       const adminSecret = getAdminSecret();
-      console.log('[AdminDashboard] Fetching pending advances...');
+      console.log('[AdminDashboard] Fetching pending advances...', { secret: adminSecret ? '***set***' : 'NOT SET' });
       const res = await fetch(`${API}/api/advances/admin/pending`, {
         method: "GET",
         headers: {
@@ -101,7 +111,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       });
 
       if (!res.ok) {
-        console.warn('[AdminDashboard] Failed to fetch pending advances:', res.status);
+        const errorText = await res.text();
+        console.error('[AdminDashboard] Failed to fetch pending advances:', { 
+          status: res.status, 
+          statusText: res.statusText,
+          body: errorText,
+          url: res.url
+        });
         return;
       }
 
@@ -117,7 +133,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const approveLeave = async (leaveId: string, status: 'accepted' | 'rejected') => {
     try {
       const adminSecret = getAdminSecret();
-      console.log(`[AdminDashboard] ${status} leave ${leaveId}`);
+      console.log(`[AdminDashboard] ${status} leave ${leaveId}`, { secret: adminSecret ? '***set***' : 'NOT SET' });
       const res = await fetch(`${API}/api/leaves/admin/${leaveId}/status`, {
         method: "PATCH",
         headers: {
@@ -128,7 +144,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       });
 
       if (!res.ok) {
-        alert(`Failed to ${status} leave`);
+        const errorText = await res.text();
+        console.error(`[AdminDashboard] Failed to ${status} leave:`, { 
+          status: res.status, 
+          statusText: res.statusText,
+          body: errorText,
+          url: res.url
+        });
+        alert(`Failed to ${status} leave (${res.status}): ${errorText}`);
         return;
       }
 
@@ -146,7 +169,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const approveAdvance = async (advanceId: string, status: 'approved' | 'rejected' | 'scheduled', paymentDate?: string) => {
     try {
       const adminSecret = getAdminSecret();
-      console.log(`[AdminDashboard] ${status} advance ${advanceId}`);
+      console.log(`[AdminDashboard] ${status} advance ${advanceId}`, { secret: adminSecret ? '***set***' : 'NOT SET' });
       const body: any = { status };
       if (status === 'scheduled' && paymentDate) {
         body.paymentDate = paymentDate;
@@ -162,7 +185,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       });
 
       if (!res.ok) {
-        alert(`Failed to ${status} advance`);
+        const errorText = await res.text();
+        console.error(`[AdminDashboard] Failed to ${status} advance:`, { 
+          status: res.status, 
+          statusText: res.statusText,
+          body: errorText,
+          url: res.url
+        });
+        alert(`Failed to ${status} advance (${res.status}): ${errorText}`);
         return;
       }
 

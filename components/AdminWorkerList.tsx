@@ -99,10 +99,14 @@ const AdminWorkerList: React.FC<AdminWorkerListProps> = ({ workers, setWorkers, 
     e.preventDefault();
     
     try {
-      const adminSecret = (import.meta as any)?.env?.VITE_ADMIN_SECRET || "xyz_super_secret_admin_key_2026_9k7d4j3hL9m2w5p8q";
+      const adminSecret = (import.meta as any)?.env?.VITE_ADMIN_SECRET || '';
+      
+      if (!adminSecret) {
+        console.warn("[AdminWorkerList] ⚠️ VITE_ADMIN_SECRET not set! Admin endpoints will fail with 401");
+      }
       
       console.log("[AdminWorkerList] Creating worker:", newWorker.workerId);
-      console.log("[AdminWorkerList] Using admin secret:", adminSecret ? `${adminSecret.substring(0, 20)}...` : "NOT SET");
+      console.log("[AdminWorkerList] Admin secret status:", adminSecret ? '***set***' : 'NOT SET');
       console.log("[AdminWorkerList] API_BASE_URL:", API_BASE_URL);
       
       const payload = {
@@ -170,7 +174,13 @@ const AdminWorkerList: React.FC<AdminWorkerListProps> = ({ workers, setWorkers, 
     }
 
     try {
-      const adminSecret = (import.meta as any)?.env?.VITE_ADMIN_SECRET || "xyz_super_secret_admin_key_2026_9k7d4j3hL9m2w5p8q";
+      const adminSecret = (import.meta as any)?.env?.VITE_ADMIN_SECRET || '';
+      
+      if (!adminSecret) {
+        console.warn("[AdminWorkerList] ⚠️ VITE_ADMIN_SECRET not set! Admin endpoints will fail with 401");
+      }
+      
+      console.log("[AdminWorkerList] Deleting worker:", worker.name, { secret: adminSecret ? '***set***' : 'NOT SET' });
       
       const res = await fetch(`${API_BASE_URL}/api/admin/delete-user/${worker.id}`, {
         method: "DELETE",
@@ -181,7 +191,18 @@ const AdminWorkerList: React.FC<AdminWorkerListProps> = ({ workers, setWorkers, 
       });
 
       if (!res.ok) {
-        const err = await res.json();
+        const errorText = await res.text();
+        console.error("[AdminWorkerList] Delete failed:", { 
+          status: res.status, 
+          statusText: res.statusText,
+          body: errorText
+        });
+        let err;
+        try {
+          err = JSON.parse(errorText);
+        } catch {
+          err = { message: errorText };
+        }
         alert(`Failed to delete: ${err.message || "Unknown error"}`);
         return;
       }
